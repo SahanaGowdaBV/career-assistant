@@ -50,14 +50,3 @@ Python Scraper
 
 Collects UAE job postings and sends normalized job data to the backend.
 
-
----
-
-# STEP 8 — First commit
-
-Now run:
-
-```bash
-git status
-
-You should see the new folders/files.
