@@ -1,5 +1,127 @@
 package career.assistant.scraper.controller;
-import career.assistant.company.service.CompanyService; import career.assistant.job.dto.JobResponse; import career.assistant.job.mapper.JobMapper; import career.assistant.job.service.JobService; import career.assistant.scraper.config.JobSource; import jakarta.validation.Valid; import jakarta.validation.constraints.*; import org.springframework.web.bind.annotation.*; import java.time.OffsetDateTime; import java.util.*;
-@RestController @RequestMapping("/api/scraper") public class IngestionController{private final JobService jobs;private final CompanyService companies;public IngestionController(JobService j,CompanyService c){jobs=j;companies=c;}@PostMapping("/ingest")public IngestResult ingest(@Valid @RequestBody IngestRequest request){int accepted=0,rejected=0,duplicates=0;List<JobResponse> saved=new ArrayList<>();for(IngestJob raw:request.jobs()){if(!eligible(raw)){rejected++;continue;}if(jobs.existsBySourceAndSourceJobId(raw.source(),raw.sourceId())){duplicates++;continue;}if(request.dryRun()){accepted++;continue;}var company=companies.findOrCreate(raw.company());var j=new career.assistant.job.entity.Job();j.setTitle(raw.title());j.setCompanyId(company.getId());j.setDescription(raw.description());j.setLocation(raw.location());j.setCountry("United Arab Emirates");j.setCity(city(raw.location()));j.setExperienceMin(raw.experienceMin());j.setExperienceMax(raw.experienceMax());j.setSource(raw.source());j.setSourceJobId(raw.sourceId());j.setJobUrl(raw.url());j.setPostedAt(raw.postedAt());saved.add(JobMapper.toResponse(jobs.create(j)));accepted++;}return new IngestResult(request.dryRun(),accepted,rejected,duplicates,saved);}
-private boolean eligible(IngestJob j){String text=(j.location()+" "+j.title()).toLowerCase();boolean uae=(text.contains("dubai")||text.contains("abu dhabi")||text.contains("sharjah")||text.contains("uae")||text.contains("united arab emirates"))&&!text.contains("india");boolean exp=(j.experienceMin()==null||j.experienceMin()<=8)&&(j.experienceMax()==null||j.experienceMax()>=4);return uae&&exp;}private String city(String l){String s=l.toLowerCase();if(s.contains("abu dhabi"))return "Abu Dhabi";if(s.contains("sharjah"))return "Sharjah";if(s.contains("dubai"))return "Dubai";return "Remote";}public record IngestRequest(boolean dryRun,@NotEmpty List<@Valid IngestJob> jobs){}public record IngestJob(@NotBlank String title,@NotBlank String company,@NotBlank String location,Integer experienceMin,Integer experienceMax,@NotNull JobSource source,@NotBlank String sourceId,@NotBlank String url,String description,OffsetDateTime postedAt){}public record IngestResult(boolean dryRun,int accepted,int rejected,int duplicates,List<JobResponse> jobs){}
+
+import career.assistant.company.service.CompanyService;
+import career.assistant.job.dto.JobResponse;
+import career.assistant.job.mapper.JobMapper;
+import career.assistant.job.service.JobService;
+import career.assistant.scraper.config.JobSource;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+@RestController
+@RequestMapping("/api/scraper")
+public class IngestionController {
+
+    private static final List<String> UAE_MARKERS = List.of(
+            "dubai", "abu dhabi", "sharjah", "uae", "united arab emirates"
+    );
+    private static final List<String> EXCLUDED_LOCATION_MARKERS = List.of(
+            "india", "bengaluru", "bangalore", "hyderabad", "pune", "chennai", "mumbai",
+            "noida", "gurugram", "gurgaon", "delhi", "saudi arabia", "riyadh", "jeddah",
+            "egypt", "cairo", "europe", "united states", "usa", "u.s.a"
+    );
+
+    private final JobService jobs;
+    private final CompanyService companies;
+
+    public IngestionController(JobService jobs, CompanyService companies) {
+        this.jobs = jobs;
+        this.companies = companies;
+    }
+
+    @PostMapping("/ingest")
+    public IngestResult ingest(@Valid @RequestBody IngestRequest request) {
+        int accepted = 0;
+        int rejected = 0;
+        int duplicates = 0;
+        List<JobResponse> saved = new ArrayList<>();
+
+        for (IngestJob raw : request.jobs()) {
+            if (!eligible(raw)) {
+                rejected++;
+                continue;
+            }
+            if (jobs.existsBySourceAndSourceJobId(raw.source(), raw.sourceId())) {
+                duplicates++;
+                continue;
+            }
+            if (request.dryRun()) {
+                accepted++;
+                continue;
+            }
+
+            var company = companies.findOrCreate(raw.company());
+            var job = new career.assistant.job.entity.Job();
+            job.setTitle(raw.title());
+            job.setCompanyId(company.getId());
+            job.setDescription(raw.description());
+            job.setLocation(raw.location());
+            job.setCountry("United Arab Emirates");
+            job.setCity(city(raw.location()));
+            job.setExperienceMin(raw.experienceMin());
+            job.setExperienceMax(raw.experienceMax());
+            job.setSource(raw.source());
+            job.setSourceJobId(raw.sourceId());
+            job.setJobUrl(raw.url());
+            job.setPostedAt(raw.postedAt());
+            job.setStatus(raw.experienceUnknown() ? "PENDING_REVIEW" : "NEW");
+            saved.add(JobMapper.toResponse(jobs.create(job)));
+            accepted++;
+        }
+        return new IngestResult(request.dryRun(), accepted, rejected, duplicates, saved);
+    }
+
+    private boolean eligible(IngestJob job) {
+        String location = job.location().toLowerCase(Locale.ROOT);
+        boolean excluded = EXCLUDED_LOCATION_MARKERS.stream().anyMatch(location::contains);
+        boolean uae = UAE_MARKERS.stream().anyMatch(location::contains);
+        boolean experience = job.experienceUnknown()
+                ? job.experienceMin() == null && job.experienceMax() == null
+                : (job.experienceMin() == null || job.experienceMin() <= 8)
+                    && (job.experienceMax() == null || job.experienceMax() >= 4);
+        return uae && !excluded && experience;
+    }
+
+    private String city(String location) {
+        String normalized = location.toLowerCase(Locale.ROOT);
+        if (normalized.contains("abu dhabi")) return "Abu Dhabi";
+        if (normalized.contains("sharjah")) return "Sharjah";
+        if (normalized.contains("dubai")) return "Dubai";
+        return "Remote";
+    }
+
+    public record IngestRequest(boolean dryRun, @NotEmpty List<@Valid IngestJob> jobs) {}
+
+    public record IngestJob(
+            @NotBlank String title,
+            @NotBlank String company,
+            @NotBlank String location,
+            Integer experienceMin,
+            Integer experienceMax,
+            boolean experienceUnknown,
+            @NotNull JobSource source,
+            @NotBlank String sourceId,
+            @NotBlank String url,
+            String description,
+            OffsetDateTime postedAt
+    ) {}
+
+    public record IngestResult(
+            boolean dryRun,
+            int accepted,
+            int rejected,
+            int duplicates,
+            List<JobResponse> jobs
+    ) {}
 }
