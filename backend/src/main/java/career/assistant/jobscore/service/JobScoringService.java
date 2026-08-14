@@ -7,6 +7,7 @@ import career.assistant.document.parsing.SkillCatalog;
 import career.assistant.document.repository.ResumeVersionRepository;
 import career.assistant.document.service.ResumeJsonCodec;
 import career.assistant.job.entity.Job;
+import career.assistant.job.repository.JobRepository;
 import career.assistant.jobscore.entity.JobScore;
 import career.assistant.jobscore.repository.JobScoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,10 @@ public class JobScoringService {
     private static final int TARGET_MAX_EXPERIENCE = 9;
     private static final long PRIORITY_JOB_HOURS = 24;
     private static final long MAX_JOB_AGE_HOURS = 48;
+    private static final int MINIMUM_COMPLETE_DESCRIPTION_LENGTH = 60;
+    private static final BigDecimal LOW_CONFIDENCE_CAP = new BigDecimal("70.00");
+    private static final BigDecimal INSUFFICIENT_EVIDENCE_CAP = new BigDecimal("90.00");
+    private static final BigDecimal MEANINGFUL_COMPONENT_SCORE = new BigDecimal("70.00");
     private static final List<String> TARGET_KEYWORDS = List.of(
             "AWS", "Azure", "Kubernetes", "Docker", "Terraform", "GitHub Actions", "CI/CD", "Jenkins", "Linux"
     );
@@ -54,20 +59,31 @@ public class JobScoringService {
     private final JobScoreRepository jobScoreRepository;
     private final ResumeVersionRepository resumeRepository;
     private final ResumeJsonCodec resumeJson;
+    private final JobRepository jobRepository;
 
     public JobScoringService(JobScoreRepository jobScoreRepository) {
-        this(jobScoreRepository, null, null);
+        this(jobScoreRepository, null, null, null);
+    }
+
+    public JobScoringService(
+            JobScoreRepository jobScoreRepository,
+            ResumeVersionRepository resumeRepository,
+            ResumeJsonCodec resumeJson
+    ) {
+        this(jobScoreRepository, resumeRepository, resumeJson, null);
     }
 
     @Autowired
     public JobScoringService(
             JobScoreRepository jobScoreRepository,
             ResumeVersionRepository resumeRepository,
-            ResumeJsonCodec resumeJson
+            ResumeJsonCodec resumeJson,
+            JobRepository jobRepository
     ) {
         this.jobScoreRepository = jobScoreRepository;
         this.resumeRepository = resumeRepository;
         this.resumeJson = resumeJson;
+        this.jobRepository = jobRepository;
     }
 
     @Transactional
@@ -86,6 +102,7 @@ public class JobScoringService {
         String jobText = buildSearchableText(job);
         String resumeText = nullToEmpty(masterEntity.getParsedText()).toLowerCase(Locale.ROOT);
         ClassifiedSkills jobSkills = classifySkills(jobText);
+        ScoringConfidence confidence = scoringConfidence(job, jobSkills);
         Set<String> verified = normalized(resume.skills());
 
         List<String> matched = new ArrayList<>();
@@ -111,10 +128,12 @@ public class JobScoringService {
                 .add(location.multiply(new BigDecimal("0.10")))
                 .add(keywords.multiply(new BigDecimal("0.20")))
                 .setScale(2, RoundingMode.HALF_UP);
+        total = calibratedTotal(total, confidence, matched, title, skills, experience, location, keywords);
 
         JobScore score = existingScore(job);
         score.setJob(job);
         score.setScore(total.min(new BigDecimal("100.00")));
+        score.setScoringConfidence(confidence.name());
         score.setSkillsScore(skills);
         score.setExperienceScore(experience);
         score.setLocationScore(location);
@@ -124,17 +143,21 @@ public class JobScoringService {
         score.setPreferredSkillsScore(preferred);
         score.setKeywordCoverageScore(keywords);
         score.setMatchedKeywords(String.join(", ", matched));
-        score.setMissingKeywords(String.join(", ", missing));
-        score.setScoringReason("Active master v" + masterEntity.getVersionNumber()
+        score.setMissingKeywords(confidence == ScoringConfidence.LOW
+                ? "Requirements unavailable" : String.join(", ", missing));
+        score.setScoringReason("Data confidence " + confidence + ". Active master v" + masterEntity.getVersionNumber()
                 + " — target title " + title + "% (20%), required skills " + required + "% (25%), preferred skills "
                 + preferred + "% (10%), experience " + experience + "% (15%), UAE location " + location
                 + "% (10%), keyword coverage " + keywords + "% (20%). Matched skills: "
                 + displayList(matched) + "; missing skills: " + displayList(missing) + ".");
+        enforceScoreEligibility(job, confidence, score.getScore());
         return jobScoreRepository.save(score);
     }
 
     private JobScore scoreFallback(Job job) {
         String searchableText = buildSearchableText(job);
+        ClassifiedSkills classifiedSkills = classifySkills(searchableText);
+        ScoringConfidence confidence = scoringConfidence(job, classifiedSkills);
         List<String> matched = new ArrayList<>();
         List<String> missing = new ArrayList<>();
         for (String keyword : TARGET_KEYWORDS) {
@@ -151,10 +174,13 @@ public class JobScoringService {
                 .add(locationScore.multiply(BigDecimal.valueOf(0.15)))
                 .add(salaryScore.multiply(BigDecimal.valueOf(0.15)))
                 .setScale(2, RoundingMode.HALF_UP);
+        totalScore = calibratedTotal(totalScore, confidence, matched, BigDecimal.ZERO, skillsScore,
+                experienceScore, locationScore, BigDecimal.ZERO);
 
         JobScore score = existingScore(job);
         score.setJob(job);
         score.setScore(totalScore);
+        score.setScoringConfidence(confidence.name());
         score.setSkillsScore(skillsScore);
         score.setExperienceScore(experienceScore);
         score.setLocationScore(locationScore);
@@ -164,10 +190,65 @@ public class JobScoringService {
         score.setPreferredSkillsScore(null);
         score.setKeywordCoverageScore(null);
         score.setMatchedKeywords(String.join(", ", matched));
-        score.setMissingKeywords(String.join(", ", missing));
-        score.setScoringReason("Skills: " + skillsScore + ", Experience: " + experienceScore
+        score.setMissingKeywords(confidence == ScoringConfidence.LOW
+                ? "Requirements unavailable" : String.join(", ", missing));
+        score.setScoringReason("Data confidence " + confidence + ". Skills: " + skillsScore + ", Experience: " + experienceScore
                 + ", Location: " + locationScore + ", Salary: " + salaryScore);
+        enforceScoreEligibility(job, confidence, score.getScore());
         return jobScoreRepository.save(score);
+    }
+
+    private ScoringConfidence scoringConfidence(Job job, ClassifiedSkills skills) {
+        String description = nullToEmpty(job.getDescription()).strip().replaceAll("\\s+", " ");
+        if (description.length() < MINIMUM_COMPLETE_DESCRIPTION_LENGTH) {
+            return ScoringConfidence.LOW;
+        }
+        String lower = description.toLowerCase(Locale.ROOT);
+        boolean requirementsIdentifiable = skills.all().size() >= 2
+                || lower.contains("required") || lower.contains("requirement")
+                || lower.contains("qualification") || lower.contains("responsibilit");
+        return requirementsIdentifiable ? ScoringConfidence.HIGH : ScoringConfidence.LOW;
+    }
+
+    private BigDecimal calibratedTotal(
+            BigDecimal total,
+            ScoringConfidence confidence,
+            List<String> matchedSkills,
+            BigDecimal title,
+            BigDecimal skills,
+            BigDecimal experience,
+            BigDecimal location,
+            BigDecimal keywords
+    ) {
+        if (confidence == ScoringConfidence.LOW) {
+            return total.min(LOW_CONFIDENCE_CAP);
+        }
+        if (total.compareTo(INSUFFICIENT_EVIDENCE_CAP) <= 0) {
+            return total;
+        }
+        long meaningfulMatches = List.of(title, skills, experience, location, keywords).stream()
+                .filter(component -> component.compareTo(MEANINGFUL_COMPONENT_SCORE) >= 0)
+                .count();
+        return matchedSkills.size() >= 2 && meaningfulMatches >= 3
+                ? total : INSUFFICIENT_EVIDENCE_CAP;
+    }
+
+    private void enforceScoreEligibility(Job job, ScoringConfidence confidence, BigDecimal total) {
+        String status = job.getStatus();
+        String eligibleStatus = status;
+        if (confidence == ScoringConfidence.LOW) {
+            if (!"PENDING_REVIEW".equals(status)) {
+                eligibleStatus = "NEW";
+            }
+        } else if (status == null || "NEW".equals(status) || "HIGH_SCORE".equals(status)) {
+            eligibleStatus = total.compareTo(new BigDecimal("75.00")) >= 0 ? "HIGH_SCORE" : "NEW";
+        }
+        if (!java.util.Objects.equals(status, eligibleStatus)) {
+            job.setStatus(eligibleStatus);
+            if (jobRepository != null) {
+                jobRepository.save(job);
+            }
+        }
     }
 
     public boolean isFreshJob(Job job) {
@@ -376,5 +457,10 @@ public class JobScoringService {
     }
 
     private record MonthRange(YearMonth start, YearMonth end) {
+    }
+
+    private enum ScoringConfidence {
+        LOW,
+        HIGH
     }
 }

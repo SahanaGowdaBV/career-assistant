@@ -13,6 +13,7 @@ public final class JobScoreMapper {
                 jobScore.getId(),
                 jobScore.getJob().getId(),
                 jobScore.getScore(),
+                jobScore.getScoringConfidence(),
                 jobScore.getSkillsScore(),
                 jobScore.getExperienceScore(),
                 jobScore.getLocationScore(),

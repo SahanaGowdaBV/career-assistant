@@ -67,6 +67,9 @@ public class JobScore {
     @Column(name = "scoring_reason", columnDefinition = "TEXT")
     private String scoringReason;
 
+    @Transient
+    private String scoringConfidence;
+
     @Column(name = "scored_at", nullable = false)
     private OffsetDateTime scoredAt;
 
@@ -165,6 +168,14 @@ public class JobScore {
 
     public void setScoringReason(String scoringReason) {
         this.scoringReason = scoringReason;
+    }
+
+    public String getScoringConfidence() {
+        return scoringConfidence;
+    }
+
+    public void setScoringConfidence(String scoringConfidence) {
+        this.scoringConfidence = scoringConfidence;
     }
 
     public OffsetDateTime getScoredAt() {

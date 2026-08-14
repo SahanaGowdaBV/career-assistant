@@ -8,6 +8,7 @@ public record JobScoreResponse(
         UUID id,
         UUID jobId,
         BigDecimal score,
+        String scoringConfidence,
         BigDecimal skillsScore,
         BigDecimal experienceScore,
         BigDecimal locationScore,
