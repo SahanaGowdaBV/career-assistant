@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ApplicationSchemaContractTest {
 
     @Test
-    void entityAndForwardMigrationUseCanonicalResumeVersionColumn() throws Exception {
+    void entityAndForwardMigrationPreserveBothResumeReferenceColumns() throws Exception {
         Column column = Application.class
                 .getDeclaredField("resumeVersionId")
                 .getAnnotation(Column.class);
@@ -24,9 +24,11 @@ class ApplicationSchemaContractTest {
         assertEquals("resume_version_id", column.name());
 
         String migration = migrationSql();
+        assertTrue(migration.contains("ADD COLUMN IF NOT EXISTS resume_id UUID"));
         assertTrue(migration.contains("ADD COLUMN IF NOT EXISTS resume_version_id UUID"));
         assertTrue(migration.contains("SET resume_version_id = resume_id"));
-        assertTrue(migration.contains("DROP COLUMN resume_id"));
+        assertTrue(migration.contains("WHERE resume_version_id IS NULL"));
+        assertFalse(migration.contains("DROP COLUMN"));
         assertTrue(migration.contains("fk_applications_resume_version"));
         assertTrue(migration.contains("idx_applications_resume_version_id"));
     }

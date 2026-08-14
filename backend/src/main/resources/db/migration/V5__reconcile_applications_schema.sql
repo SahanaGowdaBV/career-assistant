@@ -5,6 +5,7 @@
 ALTER TABLE applications
     ADD COLUMN IF NOT EXISTS application_type VARCHAR(50),
     ADD COLUMN IF NOT EXISTS application_url VARCHAR(1000),
+    ADD COLUMN IF NOT EXISTS resume_id UUID,
     ADD COLUMN IF NOT EXISTS resume_version_id UUID,
     ADD COLUMN IF NOT EXISTS cover_letter_id UUID,
     ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ,
@@ -15,25 +16,11 @@ ALTER TABLE applications
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 
 -- V3 introduced resume_id, while V2 and the resume_versions table use
--- resume_version_id. Preserve any V3 data before removing the ambiguous column.
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'applications'
-          AND column_name = 'resume_id'
-    ) THEN
-        EXECUTE '
-            UPDATE applications
-            SET resume_version_id = resume_id
-            WHERE resume_version_id IS NULL
-              AND resume_id IS NOT NULL';
-        EXECUTE 'ALTER TABLE applications DROP COLUMN resume_id';
-    END IF;
-END
-$$;
+-- resume_version_id. Keep both columns and fill only missing canonical values.
+UPDATE applications
+SET resume_version_id = resume_id
+WHERE resume_version_id IS NULL
+  AND resume_id IS NOT NULL;
 
 -- Preserve failure details from the V1 name when the entity-facing field is empty.
 DO $$
@@ -93,8 +80,7 @@ BEGIN
     ) THEN
         ALTER TABLE applications
             ADD CONSTRAINT fk_applications_job
-            FOREIGN KEY (job_id) REFERENCES jobs(id)
-            ON DELETE CASCADE NOT VALID;
+            FOREIGN KEY (job_id) REFERENCES jobs(id) NOT VALID;
     END IF;
 
     IF NOT EXISTS (
@@ -113,8 +99,7 @@ BEGIN
     ) THEN
         ALTER TABLE applications
             ADD CONSTRAINT fk_applications_resume_version
-            FOREIGN KEY (resume_version_id) REFERENCES resume_versions(id)
-            ON DELETE SET NULL NOT VALID;
+            FOREIGN KEY (resume_version_id) REFERENCES resume_versions(id) NOT VALID;
     END IF;
 
     IF NOT EXISTS (
@@ -124,8 +109,7 @@ BEGIN
     ) THEN
         ALTER TABLE applications
             ADD CONSTRAINT fk_applications_cover_letter
-            FOREIGN KEY (cover_letter_id) REFERENCES cover_letters(id)
-            ON DELETE SET NULL NOT VALID;
+            FOREIGN KEY (cover_letter_id) REFERENCES cover_letters(id) NOT VALID;
     END IF;
 END
 $$;
