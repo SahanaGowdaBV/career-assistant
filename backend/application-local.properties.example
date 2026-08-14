@@ -7,3 +7,7 @@ spring.datasource.username=${LOCAL_DATABASE_USERNAME:postgres}
 spring.datasource.password=${LOCAL_DATABASE_PASSWORD:}
 spring.jpa.hibernate.ddl-auto=validate
 spring.flyway.enabled=true
+career.resume.storage=supabase
+career.resume.supabase.url=${SUPABASE_URL}
+career.resume.supabase.service-role-key=${SUPABASE_SERVICE_ROLE_KEY}
+career.resume.supabase.bucket=${SUPABASE_RESUME_BUCKET:resumes}

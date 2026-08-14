@@ -1,5 +1,9 @@
 package career.assistant.api;
 
+import career.assistant.document.customization.UntruthfulCustomizationException;
+import career.assistant.document.service.ResumeConflictException;
+import career.assistant.document.storage.ResumeStorageException;
+import career.assistant.document.validation.ResumeValidationException;
 import career.assistant.job.exception.DuplicateJobException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -10,6 +14,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.OffsetDateTime;
@@ -88,6 +93,41 @@ public class GlobalApiExceptionHandler {
                 request,
                 Map.of()
         );
+    }
+
+    @ExceptionHandler({ResumeValidationException.class, MaxUploadSizeExceededException.class})
+    public ResponseEntity<ApiError> handleResumeValidation(
+            RuntimeException exception,
+            HttpServletRequest request
+    ) {
+        String message = exception instanceof MaxUploadSizeExceededException
+                ? "Resume exceeds the configured maximum upload size"
+                : exception.getMessage();
+        return response(HttpStatus.BAD_REQUEST, message, request, Map.of());
+    }
+
+    @ExceptionHandler(ResumeConflictException.class)
+    public ResponseEntity<ApiError> handleResumeConflict(
+            ResumeConflictException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.CONFLICT, exception.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(UntruthfulCustomizationException.class)
+    public ResponseEntity<ApiError> handleUntruthfulCustomization(
+            UntruthfulCustomizationException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, exception.getMessage(), request, Map.of());
+    }
+
+    @ExceptionHandler(ResumeStorageException.class)
+    public ResponseEntity<ApiError> handleResumeStorage(
+            ResumeStorageException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.BAD_GATEWAY, exception.getMessage(), request, Map.of());
     }
 
     private ResponseEntity<ApiError> response(

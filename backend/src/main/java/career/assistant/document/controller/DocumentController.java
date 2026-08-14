@@ -1,7 +1,45 @@
 package career.assistant.document.controller;
-import career.assistant.document.entity.*; import career.assistant.document.repository.*; import jakarta.validation.Valid; import jakarta.validation.constraints.*; import org.springframework.web.bind.annotation.*; import java.util.List;
-@RestController public class DocumentController { private final ResumeVersionRepository resumes; private final CoverLetterRepository letters; public DocumentController(ResumeVersionRepository r,CoverLetterRepository l){resumes=r;letters=l;}
- @GetMapping("/api/resume-versions") List<ResumeVersion> resumes(){return resumes.findAll();} @PostMapping("/api/resume-versions") ResumeVersion resume(@Valid @RequestBody ResumeRequest r){ResumeVersion v=new ResumeVersion();v.setVersionName(r.versionName());v.setFileName(r.fileName());v.setOriginalResume(r.originalResume());v.setCustomized(r.customized());v.setCustomizationSummary(r.customizationSummary());return resumes.save(v);}
- @GetMapping("/api/cover-letters") List<CoverLetter> letters(){return letters.findAll();} @PostMapping("/api/cover-letters") CoverLetter letter(@Valid @RequestBody LetterRequest r){CoverLetter v=new CoverLetter();v.setTitle(r.title());v.setContent(r.content());v.setCustomized(r.customized());v.setCustomizationSummary(r.customizationSummary());return letters.save(v);}
- public record ResumeRequest(@NotBlank String versionName,String fileName,boolean originalResume,boolean customized,String customizationSummary){} public record LetterRequest(@NotBlank String title,@NotBlank String content,boolean customized,String customizationSummary){}
+
+import career.assistant.document.entity.CoverLetter;
+import career.assistant.document.repository.CoverLetterRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+public class DocumentController {
+
+    private final CoverLetterRepository letters;
+
+    public DocumentController(CoverLetterRepository letters) {
+        this.letters = letters;
+    }
+
+    @GetMapping("/api/cover-letters")
+    List<CoverLetter> letters() {
+        return letters.findAll();
+    }
+
+    @PostMapping("/api/cover-letters")
+    CoverLetter letter(@Valid @RequestBody LetterRequest request) {
+        CoverLetter letter = new CoverLetter();
+        letter.setTitle(request.title());
+        letter.setContent(request.content());
+        letter.setCustomized(request.customized());
+        letter.setCustomizationSummary(request.customizationSummary());
+        return letters.save(letter);
+    }
+
+    public record LetterRequest(
+            @NotBlank String title,
+            @NotBlank String content,
+            boolean customized,
+            String customizationSummary
+    ) {
+    }
 }
