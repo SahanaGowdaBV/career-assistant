@@ -19,4 +19,5 @@ public interface ApplicationRepository
     boolean existsByJobId(UUID jobId);
 
     List<Application> findByStatus(ApplicationStatus status);
+    long countByStatus(ApplicationStatus status);
 }

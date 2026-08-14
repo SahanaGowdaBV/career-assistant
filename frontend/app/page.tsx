@@ -1,69 +1,18 @@
-import Image from "next/image";
+"use client";
+import {useEffect,useMemo,useState} from "react";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
-}
+type Job={id:string;title:string;companyId?:string;location:string;city:string;source:string;status:string;postedAt:string;description:string;experienceMin:number;experienceMax:number;jobUrl:string};
+const demo:Job[]=[
+ {id:"demo-1",title:"Senior DevOps Engineer",location:"Dubai, UAE",city:"Dubai",source:"LINKEDIN",status:"HIGH_SCORE",postedAt:"2026-08-14T08:00:00Z",description:"Build AWS and Kubernetes platforms using Terraform, Helm, Docker, GitHub Actions, Linux and Grafana.",experienceMin:5,experienceMax:8,jobUrl:"https://example.com/jobs/devops"},
+ {id:"demo-2",title:"Site Reliability Engineer",location:"Abu Dhabi, UAE",city:"Abu Dhabi",source:"COMPANY_CAREERS",status:"NEW",postedAt:"2026-08-13T09:00:00Z",description:"Own SRE, monitoring, CI/CD and cloud reliability practices.",experienceMin:4,experienceMax:7,jobUrl:"https://example.com/jobs/sre"},
+ {id:"demo-3",title:"Platform Engineer",location:"UAE Remote",city:"Remote",source:"FIXTURE",status:"PENDING_REVIEW",postedAt:"2026-08-12T09:00:00Z",description:"Platform engineering with Kubernetes, AWS and Terraform.",experienceMin:4,experienceMax:6,jobUrl:"https://example.com/jobs/platform"}
+];
+const nav=["Overview","New Jobs","High Score Jobs","Auto Applied","Pending Review","Failed Applications","Successfully Applied","Resume Versions","Cover Letters","Companies","Analytics","Settings"];
+const api=process.env.NEXT_PUBLIC_API_URL||"http://localhost:8080/api";
+const skills=["AWS","Kubernetes","Terraform","Docker","GitHub Actions","Helm","Linux","CI/CD","Grafana","Monitoring"];
+export default function Home(){const[jobs,setJobs]=useState<Job[]>(demo),[active,setActive]=useState("Overview"),[query,setQuery]=useState(""),[status,setStatus]=useState("ALL"),[sort,setSort]=useState("score"),[selected,setSelected]=useState<Job|null>(null),[loading,setLoading]=useState(true),[offline,setOffline]=useState(false),[page,setPage]=useState(1);
+ useEffect(()=>{fetch(`${api}/jobs/page?size=50`).then(r=>{if(!r.ok)throw Error();return r.json()}).then(d=>setJobs(d.content||demo)).catch(()=>setOffline(true)).finally(()=>setLoading(false))},[]);
+ const filtered=useMemo(()=>jobs.filter(j=>(j.title+" "+j.location).toLowerCase().includes(query.toLowerCase())&&(status==="ALL"||j.status===status)).sort((a,b)=>sort==="title"?a.title.localeCompare(b.title):new Date(b.postedAt).getTime()-new Date(a.postedAt).getTime()),[jobs,query,status,sort]);
+ const score=(j:Job)=>Math.min(98,45+skills.filter(s=>j.description.toLowerCase().includes(s.toLowerCase())).length*6);const shown=filtered.slice((page-1)*8,page*8);const counts={New:jobs.filter(j=>j.status==="NEW").length,"High score":jobs.filter(j=>score(j)>=75).length,"Pending review":jobs.filter(j=>j.status==="PENDING_REVIEW").length,Applied:jobs.filter(j=>j.status.includes("APPLIED")).length};
+ const update=async(j:Job,next:string)=>{setJobs(v=>v.map(x=>x.id===j.id?{...x,status:next}:x));setSelected({...j,status:next});if(!j.id.startsWith("demo"))await fetch(`${api}/jobs/${j.id}/status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:next})}).catch(()=>setOffline(true));};
+ return <div className="shell"><aside><div className="brand"><span>CA</span><div>Career Assistant<small>UAE DevOps</small></div></div><nav>{nav.map((n,i)=><button key={n} className={active===n?"active":""} onClick={()=>setActive(n)}><i>{["⌂","＋","★","⚡","◷","!","✓","▤","✉","◇","↗","⚙"][i]}</i>{n}</button>)}</nav><div className="safety"><b>Dry-run protected</b><small>No real applications are submitted.</small></div></aside><main><header><div><p className="eyebrow">CAREER WORKSPACE</p><h1>{active}</h1><p>UAE roles matched to your verified experience and skills.</p></div><button className="primary" onClick={()=>setActive("New Jobs")}>＋ Review new jobs</button></header>{offline&&<div className="notice">Demo mode · Backend unavailable. Showing safe UAE fixtures.</div>}<section className="cards">{Object.entries(counts).map(([k,v],i)=><article key={k}><span className={`dot d${i}`}/><div><small>{k}</small><strong>{v}</strong><em>{i===1?"75+ match":"Current pipeline"}</em></div></article>)}</section><section className="panel"><div className="panelHead"><div><h2>Recent opportunities</h2><p>Dubai, Abu Dhabi, Sharjah and UAE remote · 4–8 years</p></div><button className="ghost" onClick={()=>setActive("Analytics")}>View analytics ↗</button></div><div className="filters"><label>⌕<input aria-label="Search jobs" placeholder="Search role or location" value={query} onChange={e=>{setQuery(e.target.value);setPage(1)}}/></label><select aria-label="Status" value={status} onChange={e=>setStatus(e.target.value)}><option>ALL</option><option>NEW</option><option>HIGH_SCORE</option><option>PENDING_REVIEW</option><option>FAILED</option></select><select aria-label="Sort" value={sort} onChange={e=>setSort(e.target.value)}><option value="score">Newest first</option><option value="title">Title A–Z</option></select></div>{loading?<div className="state">Loading opportunities…</div>:shown.length===0?<div className="state">No jobs match these filters.</div>:<div className="tableWrap"><table><thead><tr><th>ROLE</th><th>LOCATION</th><th>MATCH</th><th>STATUS</th><th>POSTED</th><th/></tr></thead><tbody>{shown.map(j=><tr key={j.id} onClick={()=>setSelected(j)}><td><b>{j.title}</b><small>{j.source.replaceAll("_"," ")}</small></td><td>{j.location}</td><td><span className="score">{score(j)}%</span></td><td><span className={`badge ${j.status.toLowerCase()}`}>{j.status.replaceAll("_"," ")}</span></td><td>{new Date(j.postedAt).toLocaleDateString("en-AE",{month:"short",day:"numeric"})}</td><td>›</td></tr>)}</tbody></table></div>}<footer><span>Showing {shown.length} of {filtered.length} jobs</span><div><button disabled={page===1} onClick={()=>setPage(p=>p-1)}>‹</button><b>{page}</b><button disabled={page*8>=filtered.length} onClick={()=>setPage(p=>p+1)}>›</button></div></footer></section></main>{selected&&<div className="scrim" onClick={()=>setSelected(null)}><aside className="drawer" onClick={e=>e.stopPropagation()}><button className="close" onClick={()=>setSelected(null)}>×</button><p className="eyebrow">{selected.source}</p><h2>{selected.title}</h2><p>{selected.location} · {selected.experienceMin}–{selected.experienceMax} years</p><div className="bigScore"><strong>{score(selected)}%</strong><span>Overall match<small>Skills, location and experience</small></span></div><h3>Score explanation</h3><p>Strong UAE location and target experience overlap. Skills are matched only when present in the source description.</p><h3>Matched skills</h3><div className="chips good">{skills.filter(s=>selected.description.toLowerCase().includes(s.toLowerCase())).map(s=><span key={s}>✓ {s}</span>)}</div><h3>Missing skills</h3><div className="chips">{skills.filter(s=>!selected.description.toLowerCase().includes(s.toLowerCase())).map(s=><span key={s}>{s}</span>)}</div><div className="actions"><button onClick={()=>update(selected,"PENDING_REVIEW")}>Send to review</button><button className="primary" onClick={()=>update(selected,"READY_TO_APPLY")}>Mark ready</button></div><a className="source" href={selected.jobUrl} target="_blank" rel="noreferrer">Open source posting ↗</a></aside></div>}</div>}

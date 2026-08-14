@@ -138,6 +138,10 @@ public class JobScoringService {
         return jobScoreRepository.save(jobScore);
     }
 
+    public JobScore findOrScore(Job job) {
+        return jobScoreRepository.findByJob(job).orElseGet(() -> scoreJob(job));
+    }
+
     /**
      * Returns true when the job was posted within the last 48 hours.
      *

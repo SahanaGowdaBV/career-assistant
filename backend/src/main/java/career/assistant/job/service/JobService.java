@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 @Service
 public class JobService {
@@ -74,5 +77,18 @@ public class JobService {
 
     public void deleteById(UUID id) {
         jobRepository.delete(findRequired(id));
+    }
+
+    public Page<Job> search(Specification<Job> specification, Pageable pageable) {
+        return jobRepository.findAll(specification, pageable);
+    }
+
+    public Job updateStatus(UUID id, String status) {
+        java.util.Set<String> allowed = java.util.Set.of("NEW", "HIGH_SCORE", "PENDING_REVIEW", "READY_TO_APPLY", "AUTO_APPLIED", "MANUALLY_APPLIED", "FAILED", "REJECTED", "ARCHIVED");
+        String normalized = status == null ? "" : status.trim().toUpperCase();
+        if (!allowed.contains(normalized)) throw new IllegalArgumentException("Unsupported job status: " + status);
+        Job job = findRequired(id);
+        job.setStatus(normalized);
+        return jobRepository.save(job);
     }
 }

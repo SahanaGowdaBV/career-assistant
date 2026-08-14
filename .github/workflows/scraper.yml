@@ -1,0 +1,19 @@
+name: UAE Scraper Ingestion
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run: {description: Dry run only, required: true, default: 'true'}
+  schedule: [{cron: '20 2 * * *'}]
+concurrency: {group: scraper-ingestion, cancel-in-progress: false}
+jobs:
+  ingest-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ingest safe fixture
+        env:
+          CAREER_API_URL: ${{ secrets.CAREER_API_URL }}
+          DRY_RUN: ${{ inputs.dry_run || 'true' }}
+        run: |
+          test "$DRY_RUN" = "true" || { echo "Live mode is disabled in MVP"; exit 1; }
+          ./scripts/ingest-demo.sh

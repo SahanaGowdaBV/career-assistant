@@ -1,0 +1,6 @@
+package career.assistant.document.entity;
+import jakarta.persistence.*; import java.time.OffsetDateTime; import java.util.UUID;
+@Entity @Table(name="resume_versions") public class ResumeVersion {
+ @Id @GeneratedValue private UUID id; @Column(name="version_name",nullable=false) private String versionName; @Column(name="file_name") private String fileName; @Column(name="original_resume") private boolean originalResume; private boolean customized; @Column(name="customization_summary",columnDefinition="TEXT") private String customizationSummary; @Column(name="created_at") private OffsetDateTime createdAt;
+ @PrePersist void create(){if(createdAt==null)createdAt=OffsetDateTime.now();} public UUID getId(){return id;} public String getVersionName(){return versionName;} public void setVersionName(String v){versionName=v;} public String getFileName(){return fileName;} public void setFileName(String v){fileName=v;} public boolean isOriginalResume(){return originalResume;} public void setOriginalResume(boolean v){originalResume=v;} public boolean isCustomized(){return customized;} public void setCustomized(boolean v){customized=v;} public String getCustomizationSummary(){return customizationSummary;} public void setCustomizationSummary(String v){customizationSummary=v;} public OffsetDateTime getCreatedAt(){return createdAt;}
+}

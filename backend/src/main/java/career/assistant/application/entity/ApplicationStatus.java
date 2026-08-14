@@ -6,11 +6,13 @@ public enum ApplicationStatus {
 
     READY_TO_APPLY,
 
-    APPLYING,
-
-    APPLIED,
+    NEW,
+    HIGH_SCORE,
+    AUTO_APPLIED,
+    MANUALLY_APPLIED,
 
     FAILED,
 
-    SKIPPED
+    REJECTED,
+    ARCHIVED
 }

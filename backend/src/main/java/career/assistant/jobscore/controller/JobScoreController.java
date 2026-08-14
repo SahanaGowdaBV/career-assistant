@@ -32,4 +32,9 @@ public class JobScoreController {
                 jobScoringService.scoreJob(jobService.findRequired(id))
         ));
     }
+
+    @GetMapping("/{id}/score")
+    public ResponseEntity<JobScoreResponse> getScore(@PathVariable UUID id) {
+        return ResponseEntity.ok(JobScoreMapper.toResponse(jobScoringService.findOrScore(jobService.findRequired(id))));
+    }
 }
