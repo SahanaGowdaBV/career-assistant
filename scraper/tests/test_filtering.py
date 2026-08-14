@@ -71,6 +71,9 @@ def test_role_filter_is_strict_to_requested_role_families():
         "Cloud Security Engineer",
         "Senior Engineer, Platform Engineering and Architecture",
         "Senior Engineer - DevOps",
+        "Senior Site Reliability Engineer",
+        "Lead Platform Engineer",
+        "Staff Cloud Engineer",
         "Junior DevOps Engineer",
         "Software Engineer",
         "Cloud Account Executive",
@@ -85,7 +88,26 @@ def test_security_false_positive_regressions():
     assert is_target_role("Senior DevOps Engineer")
     assert is_target_role("DevSecOps Engineer")
     assert not is_target_role("Cloud Security Engineer")
+    assert is_target_role(
+        "Cloud Security Engineer",
+        additional_target_titles=("Cloud Security Engineer",),
+    )
     assert is_target_role("Platform Engineer")
+
+
+def test_non_target_primary_functions_are_not_reclassified_by_target_suffixes():
+    for title in (
+        "SOC Analyst (DevOps Engineer)",
+        "Security Operations Engineer - SRE",
+        "Cybersecurity Engineer / Cloud Engineer",
+        "NOC Engineer (DevOps Engineer)",
+        "Network Operations Engineer - Platform Engineer",
+        "Help Desk Engineer (SRE)",
+        "Support Engineer - Cloud Engineer",
+    ):
+        assert not is_target_role(title), title
+
+    assert is_target_role("DevOps Engineer - Security Operations")
 
 
 def test_experience_filter_requires_explicit_overlap_with_four_to_eight_years():

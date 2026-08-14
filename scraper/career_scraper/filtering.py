@@ -52,19 +52,17 @@ ROLE_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
         r"^(?:senior\s+|lead\s+)?dev[\s-]?ops engineer\b",
-        r"^(?:senior\s+|lead\s+)?devsecops engineer\b",
-        r"^(?:senior\s+|lead\s+|staff\s+)?site reliability engineer\b",
-        r"^(?:senior\s+|lead\s+|staff\s+)?sre\b",
-        r"^(?:senior\s+|lead\s+|staff\s+)?cloud engineer\b",
-        r"^(?:senior\s+|lead\s+|staff\s+)?cloud architect\b",
-        r"^(?:senior\s+|lead\s+|staff\s+)?platform engineer\b",
+        r"^devsecops engineer\b",
+        r"^site reliability engineer\b",
+        r"^sre\b",
+        r"^cloud engineer\b",
+        r"^cloud architect\b",
+        r"^platform engineer\b",
     )
 )
 
-NON_TARGET_PRIMARY_FUNCTION = re.compile(
-    r"\b(?:soc|security operations?|cybersecurity|noc|network operations?|help desk)\b"
-    r"|\b(?:cloud\s+)?security engineer\b"
-    r"|\bsupport engineer\b",
+PRIMARY_TITLE_SEPARATOR = re.compile(
+    r"\s*(?:\(|\||/|,|:)\s*|\s+[-–—]\s+",
     re.IGNORECASE,
 )
 
@@ -91,22 +89,23 @@ def is_uae_location(location: str) -> bool:
     return any(marker in text for marker in UAE_MARKERS)
 
 
-def is_target_role(title: str) -> bool:
+def normalize_primary_title(title: str) -> str:
+    """Return the first title clause, excluding parenthetical/trailing roles."""
+    return PRIMARY_TITLE_SEPARATOR.split(clean_text(title), maxsplit=1)[0].strip()
+
+
+def is_target_role(title: str, *, additional_target_titles: Iterable[str] = ()) -> bool:
     text = clean_text(title)
     if re.search(r"\b(?:junior|intern|internship|graduate|trainee)\b", text, re.I):
         return False
-    primary_role_match = any(pattern.search(text) for pattern in ROLE_PATTERNS)
-    if not primary_role_match:
-        return False
-    # A parenthetical or trailing target keyword must not reclassify a SOC,
-    # security, NOC, help-desk, or support role. Anchored target patterns above
-    # still allow genuine titles such as "DevOps Engineer - Security".
-    disqualifier = NON_TARGET_PRIMARY_FUNCTION.search(text)
-    if disqualifier and disqualifier.start() < next(
-        pattern.search(text).end() for pattern in ROLE_PATTERNS if pattern.search(text)
-    ):
-        return False
-    return True
+    primary_title = normalize_primary_title(text)
+    if any(pattern.fullmatch(primary_title) for pattern in ROLE_PATTERNS):
+        return True
+    configured_titles = {
+        normalize_primary_title(configured_title).casefold()
+        for configured_title in additional_target_titles
+    }
+    return primary_title.casefold() in configured_titles
 
 
 def extract_experience(text: str) -> list[tuple[int, int | None]]:
