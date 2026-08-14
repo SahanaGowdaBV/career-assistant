@@ -1,7 +1,10 @@
 package career.assistant.job.controller;
 
-import career.assistant.job.entity.Job;
+import career.assistant.job.dto.CreateJobRequest;
+import career.assistant.job.dto.JobResponse;
+import career.assistant.job.mapper.JobMapper;
 import career.assistant.job.service.JobService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,45 +23,31 @@ public class JobController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Job>> getAllJobs() {
-        return ResponseEntity.ok(jobService.findAll());
+    public ResponseEntity<List<JobResponse>> getAllJobs() {
+        return ResponseEntity.ok(jobService.findAll().stream()
+                .map(JobMapper::toResponse)
+                .toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Job> getJobById(@PathVariable UUID id) {
-        return jobService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<JobResponse> getJobById(@PathVariable UUID id) {
+        return ResponseEntity.ok(JobMapper.toResponse(jobService.findRequired(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Job> createJob(@RequestBody Job job) {
-
-        if (job.getSource() == null || job.getSourceJobId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (jobService.existsBySourceAndSourceJobId(
-                job.getSource(),
-                job.getSourceJobId()
-        )) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
-
+    public ResponseEntity<JobResponse> createJob(
+            @Valid @RequestBody CreateJobRequest request
+    ) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(jobService.save(job));
+                .body(JobMapper.toResponse(
+                        jobService.create(JobMapper.toEntity(request))
+                ));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteJob(@PathVariable UUID id) {
-
-        if (jobService.findById(id).isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
         jobService.deleteById(id);
-
         return ResponseEntity.noContent().build();
     }
 }

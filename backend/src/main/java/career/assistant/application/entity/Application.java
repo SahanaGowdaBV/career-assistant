@@ -51,8 +51,8 @@ public class Application {
     )
     private String applicationUrl;
 
-    @Column(name = "resume_id")
-    private UUID resumeId;
+    @Column(name = "resume_version_id")
+    private UUID resumeVersionId;
 
     @Column(name = "cover_letter_id")
     private UUID coverLetterId;
@@ -142,12 +142,12 @@ public class Application {
         this.applicationUrl = applicationUrl;
     }
 
-    public UUID getResumeId() {
-        return resumeId;
+    public UUID getResumeVersionId() {
+        return resumeVersionId;
     }
 
-    public void setResumeId(UUID resumeId) {
-        this.resumeId = resumeId;
+    public void setResumeVersionId(UUID resumeVersionId) {
+        this.resumeVersionId = resumeVersionId;
     }
 
     public UUID getCoverLetterId() {

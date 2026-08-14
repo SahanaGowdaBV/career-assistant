@@ -1,6 +1,7 @@
 package career.assistant.job.dto;
 
 import career.assistant.scraper.config.JobSource;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -52,6 +53,7 @@ public class CreateJobRequest {
     private JobSource source;
 
     @Size(max = 500)
+    @NotBlank
     private String sourceJobId;
 
     @NotBlank
@@ -60,7 +62,18 @@ public class CreateJobRequest {
 
     private OffsetDateTime postedAt;
 
+    @Size(max = 50)
     private String status;
+
+    @AssertTrue(message = "experienceMin must be less than or equal to experienceMax")
+    public boolean isExperienceRangeValid() {
+        return experienceMin == null || experienceMax == null || experienceMin <= experienceMax;
+    }
+
+    @AssertTrue(message = "salaryMin must be less than or equal to salaryMax")
+    public boolean isSalaryRangeValid() {
+        return salaryMin == null || salaryMax == null || salaryMin.compareTo(salaryMax) <= 0;
+    }
 
     public String getTitle() {
         return title;
@@ -198,4 +211,3 @@ public class CreateJobRequest {
         this.status = status;
     }
 }
-

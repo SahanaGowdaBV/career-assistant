@@ -1,0 +1,138 @@
+package career.assistant.job.controller;
+
+import career.assistant.api.GlobalApiExceptionHandler;
+import career.assistant.api.ResourceNotFoundException;
+import career.assistant.job.entity.Job;
+import career.assistant.job.exception.DuplicateJobException;
+import career.assistant.job.service.JobService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+class JobControllerTest {
+
+    private JobService jobService;
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        jobService = mock(JobService.class);
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(new JobController(jobService))
+                .setControllerAdvice(new GlobalApiExceptionHandler())
+                .build();
+    }
+
+    @Test
+    void returnsJobsAsResponseDtos() throws Exception {
+        Job job = job();
+        when(jobService.findAll()).thenReturn(List.of(job));
+
+        mockMvc.perform(get("/api/jobs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Platform Engineer"))
+                .andExpect(jsonPath("$[0].source").value("LINKEDIN"));
+    }
+
+    @Test
+    void createsValidatedJob() throws Exception {
+        when(jobService.create(any(Job.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mockMvc.perform(post("/api/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validJson()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title").value("Platform Engineer"))
+                .andExpect(jsonPath("$.sourceJobId").value("linkedin-123"));
+    }
+
+    @Test
+    void returnsStructuredValidationErrors() throws Exception {
+        mockMvc.perform(post("/api/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Request validation failed"))
+                .andExpect(jsonPath("$.validationErrors.title").exists())
+                .andExpect(jsonPath("$.validationErrors.companyId").exists());
+    }
+
+    @Test
+    void returnsConflictForDuplicateJob() throws Exception {
+        when(jobService.create(any(Job.class)))
+                .thenThrow(new DuplicateJobException("Job already exists"));
+
+        mockMvc.perform(post("/api/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validJson()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Job already exists"));
+    }
+
+    @Test
+    void returnsConflictForDatabaseConstraintFailure() throws Exception {
+        when(jobService.create(any(Job.class)))
+                .thenThrow(new DataIntegrityViolationException("constraint"));
+
+        mockMvc.perform(post("/api/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validJson()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("The request conflicts with a database constraint"));
+    }
+
+    @Test
+    void returnsNotFoundForMissingJob() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(jobService.findRequired(id))
+                .thenThrow(new ResourceNotFoundException("Job " + id + " was not found"));
+
+        mockMvc.perform(get("/api/jobs/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void returnsBadRequestForMalformedId() throws Exception {
+        mockMvc.perform(get("/api/jobs/not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for 'id'"));
+    }
+
+    private Job job() {
+        Job job = new Job();
+        job.setTitle("Platform Engineer");
+        job.setCompanyId(UUID.randomUUID());
+        job.setSource(career.assistant.scraper.config.JobSource.LINKEDIN);
+        job.setSourceJobId("linkedin-123");
+        job.setJobUrl("https://example.test/jobs/123");
+        return job;
+    }
+
+    private String validJson() {
+        return """
+                {
+                  "title": "Platform Engineer",
+                  "companyId": "%s",
+                  "source": "LINKEDIN",
+                  "sourceJobId": "linkedin-123",
+                  "jobUrl": "https://example.test/jobs/123"
+                }
+                """.formatted(UUID.randomUUID());
+    }
+}

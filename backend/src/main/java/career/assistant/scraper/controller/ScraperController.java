@@ -1,6 +1,7 @@
 package career.assistant.scraper.controller;
 
-import career.assistant.job.entity.Job;
+import career.assistant.job.dto.JobResponse;
+import career.assistant.job.mapper.JobMapper;
 import career.assistant.job.service.JobImportService;
 import career.assistant.scraper.service.JobScraper;
 import org.springframework.http.ResponseEntity;
@@ -26,12 +27,12 @@ public class ScraperController {
     }
 
     @PostMapping("/run")
-    public ResponseEntity<List<Job>> runScraper() {
+    public ResponseEntity<List<JobResponse>> runScraper() {
 
-        List<Job> jobs = jobImportService.importJobs(
-                jobScraper.scrape()
-        );
-
-        return ResponseEntity.ok(jobs);
+        return ResponseEntity.ok(jobImportService.importJobs(
+                        jobScraper.scrape()
+                ).stream()
+                .map(JobMapper::toResponse)
+                .toList());
     }
 }

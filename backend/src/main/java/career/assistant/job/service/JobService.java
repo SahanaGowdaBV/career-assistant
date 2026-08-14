@@ -1,6 +1,8 @@
 package career.assistant.job.service;
 
+import career.assistant.api.ResourceNotFoundException;
 import career.assistant.job.entity.Job;
+import career.assistant.job.exception.DuplicateJobException;
 import career.assistant.job.repository.JobRepository;
 import career.assistant.scraper.config.JobSource;
 import org.springframework.stereotype.Service;
@@ -22,12 +24,32 @@ public class JobService {
         return jobRepository.save(job);
     }
 
+    public Job create(Job job) {
+        if (jobRepository.existsBySourceAndSourceJobId(
+                job.getSource(),
+                job.getSourceJobId()
+        )) {
+            throw new DuplicateJobException(
+                    "A job with source " + job.getSource()
+                            + " and sourceJobId " + job.getSourceJobId()
+                            + " already exists"
+            );
+        }
+        return jobRepository.save(job);
+    }
+
     public List<Job> findAll() {
         return jobRepository.findAll();
     }
 
     public Optional<Job> findById(UUID id) {
         return jobRepository.findById(id);
+    }
+
+    public Job findRequired(UUID id) {
+        return findById(id).orElseThrow(() ->
+                new ResourceNotFoundException("Job " + id + " was not found")
+        );
     }
 
     public Optional<Job> findBySourceAndSourceJobId(
@@ -51,6 +73,6 @@ public class JobService {
     }
 
     public void deleteById(UUID id) {
-        jobRepository.deleteById(id);
+        jobRepository.delete(findRequired(id));
     }
 }
