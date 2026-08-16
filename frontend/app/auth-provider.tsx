@@ -54,18 +54,18 @@ export function AuthProvider({children}: {children: ReactNode}) {
     }
   }, [loading, pathname, router, session]);
 
-  const expireSession = useCallback(async () => {
+  const expireSession = useCallback(async (reason: "session-missing" | "session-refresh-failed" | "backend-unauthorized") => {
     if (pathname === AUTH_CALLBACK_PATH) return;
     setSession(null);
     await getSupabaseBrowserClient().auth.signOut({scope: "local"});
-    router.replace("/login?reason=session-expired");
+    router.replace(`/login?reason=${reason}`);
   }, [pathname, router]);
 
   const apiFetch = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const supabase = getSupabaseBrowserClient();
     const {data: {session: currentSession}} = await supabase.auth.getSession();
     if (!currentSession) {
-      await expireSession();
+      await expireSession("session-missing");
       throw new AuthenticationRequiredError();
     }
 
@@ -82,9 +82,12 @@ export function AuthProvider({children}: {children: ReactNode}) {
     if (!error && refreshedSession) {
       response = await authenticatedRequest(refreshedSession.access_token);
       if (response.status !== 401) return response;
+    } else {
+      await expireSession("session-refresh-failed");
+      throw new AuthenticationRequiredError();
     }
 
-    await expireSession();
+    await expireSession("backend-unauthorized");
     throw new AuthenticationRequiredError();
   }, [expireSession]);
 

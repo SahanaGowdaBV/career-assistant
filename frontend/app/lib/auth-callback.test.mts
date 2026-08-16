@@ -17,6 +17,8 @@ test("callback exchanges the PKCE code exactly once before succeeding", async ()
         calls.push(code);
         return {data: {session: {}}, error: null};
       },
+      getSession: async () => ({data: {session: {}}, error: null}),
+      getUser: async () => ({data: {user: {}}, error: null}),
     },
   };
 
@@ -34,6 +36,8 @@ test("callback reports a safe error without attempting exchange when code is abs
         called = true;
         return {data: {session: {}}, error: null};
       },
+      getSession: async () => ({data: {session: {}}, error: null}),
+      getUser: async () => ({data: {user: {}}, error: null}),
     },
   };
 
@@ -50,6 +54,8 @@ test("callback hides provider error details when exchange fails", async () => {
         data: {session: null},
         error: new Error("sensitive-provider-detail"),
       }),
+      getSession: async () => ({data: {session: null}, error: null}),
+      getUser: async () => ({data: {user: null}, error: null}),
     },
   };
 
@@ -65,6 +71,8 @@ test("callback converts thrown exchange failures to the same safe error", async 
       exchangeCodeForSession: async () => {
         throw new Error("sensitive-network-detail");
       },
+      getSession: async () => ({data: {session: null}, error: null}),
+      getUser: async () => ({data: {user: null}, error: null}),
     },
   };
 
