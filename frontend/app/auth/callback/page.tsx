@@ -2,6 +2,7 @@
 
 import {useEffect, useRef, useState} from "react";
 import {useRouter} from "next/navigation";
+import {completePkceCallback} from "../../lib/auth-callback";
 import {getSupabaseBrowserClient} from "../../lib/supabase";
 
 export default function AuthCallbackPage() {
@@ -14,9 +15,9 @@ export default function AuthCallbackPage() {
     started.current = true;
     const finishSignIn = async () => {
       const supabase = getSupabaseBrowserClient();
-      const {data, error: sessionError} = await supabase.auth.getSession();
-      if (sessionError || !data.session) {
-        setError("A valid session could not be created. Request a new magic link.");
+      const result = await completePkceCallback(supabase, window.location.href);
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
       router.replace("/");

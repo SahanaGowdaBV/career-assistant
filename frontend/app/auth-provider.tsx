@@ -3,6 +3,7 @@
 import type {Session} from "@supabase/supabase-js";
 import {usePathname, useRouter} from "next/navigation";
 import {createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState} from "react";
+import {AUTH_CALLBACK_PATH, isPublicAuthRoute} from "./lib/auth-callback";
 import {getSupabaseBrowserClient} from "./lib/supabase";
 
 type AuthContextValue = {
@@ -13,8 +14,6 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const publicRoutes = new Set(["/login", "/auth/callback"]);
-
 export class AuthenticationRequiredError extends Error {
   constructor() {
     super("Your session has expired. Please sign in again.");
@@ -50,16 +49,17 @@ export function AuthProvider({children}: {children: ReactNode}) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !session && !publicRoutes.has(pathname)) {
+    if (!loading && !session && !isPublicAuthRoute(pathname)) {
       router.replace("/login");
     }
   }, [loading, pathname, router, session]);
 
   const expireSession = useCallback(async () => {
+    if (pathname === AUTH_CALLBACK_PATH) return;
     setSession(null);
     await getSupabaseBrowserClient().auth.signOut({scope: "local"});
     router.replace("/login?reason=session-expired");
-  }, [router]);
+  }, [pathname, router]);
 
   const apiFetch = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const supabase = getSupabaseBrowserClient();
@@ -118,7 +118,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
   }, [router]);
 
   const value = useMemo(() => ({session, apiFetch, downloadFile, signOut}), [apiFetch, downloadFile, session, signOut]);
-  if (loading || (!session && !publicRoutes.has(pathname))) {
+  if (loading || (!session && !isPublicAuthRoute(pathname))) {
     return <div className="authLoading" role="status">Loading secure workspace…</div>;
   }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
