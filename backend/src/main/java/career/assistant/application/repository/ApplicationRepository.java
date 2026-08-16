@@ -25,6 +25,6 @@ public interface ApplicationRepository
 
     List<Application> findByUpdatedAtBefore(java.time.OffsetDateTime cutoff);
 
-    boolean existsByResumeVersionIdAndStatusNotIn(UUID resumeVersionId, java.util.Collection<ApplicationStatus> statuses);
-    boolean existsByCoverLetterIdAndStatusNotIn(UUID coverLetterId, java.util.Collection<ApplicationStatus> statuses);
+    boolean existsByResumeVersionIdAndStatusIn(UUID resumeVersionId, java.util.Collection<ApplicationStatus> statuses);
+    boolean existsByCoverLetterIdAndStatusIn(UUID coverLetterId, java.util.Collection<ApplicationStatus> statuses);
 }

@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -99,6 +100,9 @@ public class SupabaseResumeStorage implements ResumeStorage {
                     .uri(uriBuilder -> uriBuilder.path("/object/{bucket}/").path(objectPath).build(bucket))
                     .retrieve()
                     .toBodilessEntity();
+        } catch (HttpClientErrorException.NotFound exception) {
+            // A prior attempt may have removed the object before its database
+            // transaction completed. Treat that state as an idempotent success.
         } catch (RuntimeException exception) {
             throw new ResumeStorageException("Unable to delete resume file", exception);
         }
