@@ -74,6 +74,24 @@ public class Application {
     )
     private String notes;
 
+    @Column(name = "idempotency_key", nullable = false, length = 100)
+    private String idempotencyKey;
+
+    @Column(name = "adapter", length = 30)
+    private String adapter;
+
+    @Column(name = "confirmation_id", length = 500)
+    private String confirmationId;
+
+    @Column(name = "confirmation_url", length = 1000)
+    private String confirmationUrl;
+
+    @Column(name = "submitted_at")
+    private OffsetDateTime submittedAt;
+
+    @Column(name = "notification_sent_at")
+    private OffsetDateTime notificationSentAt;
+
     @Column(
             name = "created_at",
             nullable = false
@@ -97,6 +115,9 @@ public class Application {
 
         if (updatedAt == null) {
             updatedAt = now;
+        }
+        if (idempotencyKey == null && job != null && job.getId() != null) {
+            idempotencyKey = "job:" + job.getId();
         }
     }
 
@@ -197,4 +218,10 @@ public class Application {
     public OffsetDateTime getUpdatedAt() {
         return updatedAt;
     }
+    public String getIdempotencyKey(){return idempotencyKey;} public void setIdempotencyKey(String v){idempotencyKey=v;}
+    public String getAdapter(){return adapter;} public void setAdapter(String v){adapter=v;}
+    public String getConfirmationId(){return confirmationId;} public void setConfirmationId(String v){confirmationId=v;}
+    public String getConfirmationUrl(){return confirmationUrl;} public void setConfirmationUrl(String v){confirmationUrl=v;}
+    public OffsetDateTime getSubmittedAt(){return submittedAt;} public void setSubmittedAt(OffsetDateTime v){submittedAt=v;}
+    public OffsetDateTime getNotificationSentAt(){return notificationSentAt;} public void setNotificationSentAt(OffsetDateTime v){notificationSentAt=v;}
 }

@@ -136,6 +136,8 @@ public class ResumeService {
 
     @Transactional
     public ResumeDetailsResponse createCustomized(UUID jobId) {
+        Optional<ResumeVersion> existing = repository.findFirstByJobIdAndCustomizedTrue(jobId);
+        if (existing.isPresent()) return details(existing.get());
         ResumeVersion masterEntity = repository.findFirstByMasterResumeTrue()
                 .orElseThrow(() -> new ResumeConflictException("An active master resume is required before customization"));
         Job job = jobRepository.findById(jobId)
@@ -200,6 +202,8 @@ public class ResumeService {
     public ParsedResume parsed(ResumeVersion resume) {
         return json.readResume(resume.getStructuredExperience());
     }
+
+    public ResumeVersion findEntity(UUID id) { return findRequired(id); }
 
     private void applyParsed(ResumeVersion resume, ParsedResumeDocument parsed) {
         resume.setParsedText(parsed.originalText());

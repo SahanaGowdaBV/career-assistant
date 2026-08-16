@@ -17,6 +17,10 @@ public interface ResumeVersionRepository extends JpaRepository<ResumeVersion, UU
 
     Optional<ResumeVersion> findTopByOrderByVersionNumberDesc();
 
+    Optional<ResumeVersion> findFirstByJobIdAndCustomizedTrue(UUID jobId);
+
+    List<ResumeVersion> findByCreatedAtBefore(java.time.OffsetDateTime cutoff);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update ResumeVersion resume set resume.masterResume = false where resume.masterResume = true")
     int deactivateAllMasters();

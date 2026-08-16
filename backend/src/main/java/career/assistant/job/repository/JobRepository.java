@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 public interface JobRepository extends JpaRepository<Job, UUID>, JpaSpecificationExecutor<Job> {
 
@@ -21,4 +22,6 @@ public interface JobRepository extends JpaRepository<Job, UUID>, JpaSpecificatio
             JobSource source,
             String sourceJobId
     );
+
+    List<Job> findByStatusInAndUpdatedAtBefore(java.util.Collection<String> statuses, java.time.OffsetDateTime cutoff);
 }

@@ -1,0 +1,3 @@
+package career.assistant.cleanup;
+import org.springframework.http.HttpStatus; import org.springframework.web.bind.annotation.*; import org.springframework.web.server.ResponseStatusException;
+@RestController @RequestMapping("/api/cleanup") public class RetentionCleanupController {private final RetentionCleanupService service;public RetentionCleanupController(RetentionCleanupService s){service=s;}@PostMapping("/preview")public RetentionCleanupService.CleanupResult preview(){var result=service.run();if(!result.dryRun())throw new ResponseStatusException(HttpStatus.CONFLICT,"Cleanup preview requires dry-run mode");return result;}}

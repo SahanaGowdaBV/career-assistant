@@ -1,0 +1,3 @@
+package career.assistant.application.ats;
+import career.assistant.application.entity.Application; import career.assistant.job.entity.Job;
+public interface AtsAdapter {String name(); boolean supports(String url); AdapterResult dryRun(Job job,Application application); record AdapterResult(boolean success,boolean verified,String confirmationId,String confirmationUrl,String reason){public static AdapterResult dry(String adapter){return new AdapterResult(true,false,null,null,"Dry run validated "+adapter+" public application flow; no request was submitted.");}public static AdapterResult pending(String reason){return new AdapterResult(false,false,null,null,reason);}}}
