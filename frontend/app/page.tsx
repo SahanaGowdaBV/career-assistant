@@ -9,7 +9,7 @@ type Job = {id:string; title:string|null; companyId:string|null; companyName?:st
 type NormalizedJob = {id:string; title:string; companyId:string; companyName:string; location:string; city:string; source:string; status:string; postedAt:string; description:string; experienceMin:number|null; experienceMax:number|null; jobUrl:string};
 type JobPage = {content?: Job[] | null};
 
-const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+const api = process.env.NEXT_PUBLIC_API_URL || "";
 const skills = ["AWS", "Kubernetes", "Terraform", "Docker", "GitHub Actions", "Helm", "Linux", "CI/CD", "Grafana", "Monitoring"];
 const nav = ["Overview", "New Jobs", "High Score Jobs", "Pending Review", "Ready to Apply", "Auto Applied", "Failed Applications", "Successfully Applied", "Resume Versions", "Cover Letters", "Companies", "Analytics", "Settings"];
 const navIcons = ["⌂", "＋", "★", "◷", "→", "⚡", "!", "✓", "▤", "✉", "◇", "↗", "⚙"];
