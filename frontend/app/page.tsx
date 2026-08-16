@@ -2,6 +2,7 @@
 
 import {useEffect, useMemo, useState} from "react";
 import ResumeVersions from "./resume-versions";
+import ApplicationWorkflow from "./application-workflow";
 
 type Job = {id:string; title:string|null; companyId:string|null; companyName?:string|null; description:string|null; location:string|null; country:string|null; city:string|null; employmentType:string|null; experienceMin:number|null; experienceMax:number|null; salaryMin:number|null; salaryMax:number|null; salaryCurrency:string|null; source:string|null; sourceJobId:string|null; jobUrl:string|null; postedAt:string|null; scrapedAt:string|null; status:string|null; createdAt:string|null; updatedAt:string|null};
 type NormalizedJob = {id:string; title:string; companyId:string; companyName:string; location:string; city:string; source:string; status:string; postedAt:string; description:string; experienceMin:number|null; experienceMax:number|null; jobUrl:string};
@@ -9,8 +10,8 @@ type JobPage = {content?: Job[] | null};
 
 const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 const skills = ["AWS", "Kubernetes", "Terraform", "Docker", "GitHub Actions", "Helm", "Linux", "CI/CD", "Grafana", "Monitoring"];
-const nav = ["Overview", "New Jobs", "High Score Jobs", "Auto Applied", "Pending Review", "Failed Applications", "Successfully Applied", "Resume Versions", "Cover Letters", "Companies", "Analytics", "Settings"];
-const navIcons = ["⌂", "＋", "★", "⚡", "◷", "!", "✓", "▤", "✉", "◇", "↗", "⚙"];
+const nav = ["Overview", "New Jobs", "High Score Jobs", "Pending Review", "Ready to Apply", "Auto Applied", "Failed Applications", "Successfully Applied", "Resume Versions", "Cover Letters", "Companies", "Analytics", "Settings"];
+const navIcons = ["⌂", "＋", "★", "◷", "→", "⚡", "!", "✓", "▤", "✉", "◇", "↗", "⚙"];
 const text = (value:string|null|undefined, fallback="") => typeof value === "string" ? value : fallback;
 const normalizeJob = (job:Job, index:number):NormalizedJob => ({id:text(job.id, `unknown-job-${index}`), title:text(job.title, "Untitled role"), companyId:text(job.companyId), companyName:text(job.companyName), location:text(job.location, "Location unavailable"), city:text(job.city), source:text(job.source, "UNKNOWN"), status:text(job.status, "UNKNOWN"), postedAt:text(job.postedAt), description:text(job.description), experienceMin:typeof job.experienceMin === "number" ? job.experienceMin : null, experienceMax:typeof job.experienceMax === "number" ? job.experienceMax : null, jobUrl:text(job.jobUrl)});
 const dateValue = (value:string) => {const parsed=Date.parse(value); return Number.isNaN(parsed) ? 0 : parsed;};
@@ -32,6 +33,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [page, setPage] = useState(1);
+  const [packageBusy,setPackageBusy]=useState(false);
+  const [packageNotice,setPackageNotice]=useState<string|null>(null);
 
   useEffect(() => {
     fetch(`${api}/jobs/page?size=50`)
@@ -48,13 +51,9 @@ export default function Home() {
   const shown = filtered.slice((page - 1) * 8, page * 8);
   const counts = {New:jobs.filter(job => job.status === "NEW").length, "High score":jobs.filter(job => score(job) >= 75).length, "Pending review":jobs.filter(job => job.status === "PENDING_REVIEW").length, Applied:jobs.filter(job => job.status.includes("APPLIED")).length};
 
-  const update = async (job:NormalizedJob, next:string) => {
-    setJobs(value => value.map(item => item.id === job.id ? {...item, status:next} : item));
-    setSelected({...job, status:next});
-    if (!job.id.startsWith("demo")) await fetch(`${api}/jobs/${job.id}/status`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({status:next})}).catch(() => setOffline(true));
-  };
-
   const navigate = (name:string) => {setActive(name); setSelected(null);};
+  const workflowViews=["Pending Review","Ready to Apply","Auto Applied","Failed Applications","Successfully Applied","Cover Letters"];
+  const generatePackage=async(job:NormalizedJob)=>{let confirmed=false;if(score(job)<90){confirmed=window.confirm("This job may have LOW confidence. Confirm manual review before generating its package?");if(!confirmed)return;}setPackageBusy(true);setPackageNotice(null);try{const response=await fetch(`${api}/applications/packages`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:job.id,lowConfidenceConfirmed:confirmed})});const body=await response.json().catch(()=>null) as {message?:string}|null;if(!response.ok)throw new Error(body?.message||`Request failed (${response.status})`);setPackageNotice("Application package generated and routed to Pending Review.");setSelected(null);navigate("Pending Review");}catch(error){setPackageNotice(error instanceof Error?error.message:"Package generation failed");}finally{setPackageBusy(false);}};
 
   return <div className="shell">
     <aside>
@@ -64,7 +63,7 @@ export default function Home() {
     </aside>
     <main>
       <header><div><p className="eyebrow">CAREER WORKSPACE</p><h1>{active}</h1><p>UAE roles matched to your verified experience and skills.</p></div>{active !== "Resume Versions" && <button className="primary" onClick={() => navigate("New Jobs")}>＋ Review new jobs</button>}</header>
-      {active === "Resume Versions" ? <ResumeVersions apiBase={api}/> : <>
+      {active === "Resume Versions" ? <ResumeVersions apiBase={api}/> : workflowViews.includes(active) ? <ApplicationWorkflow apiBase={api} view={active}/> : <>
         {offline && <div className="notice">Demo mode · Backend unavailable. Showing safe UAE fixtures.</div>}
         <section className="cards">{Object.entries(counts).map(([name, value], index) => <article key={name}><span className={`dot d${index}`}/><div><small>{name}</small><strong>{value}</strong><em>{index === 1 ? "75+ match" : "Current pipeline"}</em></div></article>)}</section>
         <section className="panel">
@@ -75,6 +74,6 @@ export default function Home() {
         </section>
       </>}
     </main>
-    {selected && <div className="scrim" onClick={() => setSelected(null)}><aside className="drawer" onClick={event => event.stopPropagation()}><button className="close" onClick={() => setSelected(null)}>×</button><p className="eyebrow">{selected.source}</p><h2>{selected.title}</h2><p>{selected.location} · {formatExperience(selected.experienceMin, selected.experienceMax)}</p><div className="bigScore"><strong>{score(selected)}%</strong><span>Overall match<small>Skills, location and experience</small></span></div><h3>Score explanation</h3><p>Strong UAE location and target experience overlap. Skills are matched only when present in the source description.</p><h3>Matched skills</h3><div className="chips good">{skills.filter(skill => selected.description.toLowerCase().includes(skill.toLowerCase())).map(skill => <span key={skill}>✓ {skill}</span>)}</div><h3>Missing skills</h3><div className="chips">{skills.filter(skill => !selected.description.toLowerCase().includes(skill.toLowerCase())).map(skill => <span key={skill}>{skill}</span>)}</div><div className="actions"><button onClick={() => void update(selected, "PENDING_REVIEW")}>Send to review</button><button className="primary" onClick={() => void update(selected, "READY_TO_APPLY")}>Mark ready</button></div>{selected.jobUrl && <a className="source" href={selected.jobUrl} target="_blank" rel="noreferrer">Open source posting ↗</a>}</aside></div>}
+    {packageNotice&&<div className="notice">{packageNotice}</div>}{selected && <div className="scrim" onClick={() => setSelected(null)}><aside className="drawer" onClick={event => event.stopPropagation()}><button className="close" onClick={() => setSelected(null)}>×</button><p className="eyebrow">{selected.source}</p><h2>{selected.title}</h2><p>{selected.location} · {formatExperience(selected.experienceMin, selected.experienceMax)}</p><div className="bigScore"><strong>{score(selected)}%</strong><span>Overall match<small>Skills, location and experience</small></span></div><h3>Score explanation</h3><p>Strong UAE location and target experience overlap. Skills are matched only when present in the source description.</p><h3>Matched skills</h3><div className="chips good">{skills.filter(skill => selected.description.toLowerCase().includes(skill.toLowerCase())).map(skill => <span key={skill}>✓ {skill}</span>)}</div><h3>Missing skills</h3><div className="chips">{skills.filter(skill => !selected.description.toLowerCase().includes(skill.toLowerCase())).map(skill => <span key={skill}>{skill}</span>)}</div><div className="actions"><button className="primary" disabled={packageBusy||selected.id.startsWith("demo")} onClick={()=>void generatePackage(selected)}>{packageBusy?"Generating…":"Generate application package"}</button></div>{selected.id.startsWith("demo")&&<p>Connect the backend and select a persisted job to generate documents.</p>}{selected.jobUrl && <a className="source" href={selected.jobUrl} target="_blank" rel="noreferrer">Open source posting ↗</a>}</aside></div>}
   </div>;
 }
