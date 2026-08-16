@@ -21,7 +21,9 @@ python scraper/run.py --dry-run --max-results 200 --max-candidates 200 \
 Live ingestion is opt-in and goes only through the backend deduplicating API:
 
 ```bash
-CAREER_API_URL=http://localhost:8080/api python scraper/run.py --live --max-results 50
+CAREER_API_URL=http://localhost:8080/api \
+SCRAPER_INGESTION_TOKEN='<configured-secret>' \
+python scraper/run.py --live --max-results 50
 ```
 
 The scraper never creates applications and never writes to Supabase directly.

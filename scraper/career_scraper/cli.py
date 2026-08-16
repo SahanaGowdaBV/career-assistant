@@ -36,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
     dry_run = not args.live
+    ingestion_token = None
     if not dry_run:
         if args.max_results > 50:
             raise SystemExit("--live permits at most 50 results")
@@ -44,6 +45,9 @@ def main(argv: list[str] | None = None) -> int:
         parsed = urlparse(args.api_url)
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
             raise SystemExit("CAREER_API_URL must be an http(s) URL")
+        ingestion_token = os.environ.get("SCRAPER_INGESTION_TOKEN")
+        if not ingestion_token:
+            raise SystemExit("SCRAPER_INGESTION_TOKEN is required for --live")
 
     client = PublicHttpClient(timeout=args.timeout, retries=args.retries, rate_limit_seconds=args.rate_limit_seconds)
     pipeline = Pipeline(client=client, max_results=args.max_results, max_candidates=args.max_candidates)
@@ -51,7 +55,11 @@ def main(argv: list[str] | None = None) -> int:
     payload = {"dryRun": dry_run, "jobs": [job.to_ingestion_dict() for job in jobs]}
     ingestion = None
     if not dry_run and jobs:
-        response = client.post(ingestion_url(args.api_url), payload)
+        response = client.post(
+            ingestion_url(args.api_url),
+            payload,
+            headers={"X-Scraper-Ingestion-Token": ingestion_token},
+        )
         ingestion = {
             "accepted": int(response.get("accepted", 0)),
             "rejected": int(response.get("rejected", 0)),

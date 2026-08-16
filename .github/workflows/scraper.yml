@@ -45,13 +45,15 @@ jobs:
       - name: Scrape public UAE career endpoints
         env:
           CAREER_API_URL: ${{ secrets.CAREER_API_URL }}
+          SCRAPER_INGESTION_TOKEN: ${{ secrets.SCRAPER_INGESTION_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'schedule' && 'true' || inputs.dry_run }}
           MAXIMUM_RESULTS: ${{ inputs.maximum_results || '50' }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
             python scraper/run.py --dry-run --max-results "$MAXIMUM_RESULTS" --max-candidates 200 --summary-file scraper-summary.json
           else
-            test -n "$CAREER_API_URL"
+            test -n "$CAREER_API_URL" || { echo "::error::CAREER_API_URL is required for live ingestion"; exit 1; }
+            test -n "$SCRAPER_INGESTION_TOKEN" || { echo "::error::SCRAPER_INGESTION_TOKEN is required for live ingestion"; exit 1; }
             python scraper/run.py --live --max-results "$MAXIMUM_RESULTS" --max-candidates 200 --summary-file scraper-summary.json
           fi
 
