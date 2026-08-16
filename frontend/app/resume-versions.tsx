@@ -1,6 +1,7 @@
 "use client";
 
 import {FormEvent, useCallback, useEffect, useState} from "react";
+import {useAuth} from "./auth-provider";
 
 type ResumeSummary = {
   id: string;
@@ -48,6 +49,7 @@ const formatSize = (bytes: number) => bytes < 1024 * 1024
   : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 export default function ResumeVersions({apiBase}: {apiBase: string}) {
+  const {apiFetch, downloadFile} = useAuth();
   const [resumes, setResumes] = useState<ResumeSummary[]>([]);
   const [selected, setSelected] = useState<ResumeDetails | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -59,7 +61,7 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${apiBase}/resumes`, {cache: "no-store"});
+      const response = await apiFetch(`${apiBase}/resumes`, {cache: "no-store"});
       if (!response.ok) throw new Error(await errorMessage(response));
       setResumes(await response.json() as ResumeSummary[]);
     } catch (error) {
@@ -67,11 +69,11 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
     } finally {
       setLoading(false);
     }
-  }, [apiBase]);
+  }, [apiBase, apiFetch]);
 
   useEffect(() => {
     let ignore = false;
-    fetch(`${apiBase}/resumes`, {cache: "no-store"})
+    apiFetch(`${apiBase}/resumes`, {cache: "no-store"})
       .then(async response => {
         if (!response.ok) throw new Error(await errorMessage(response));
         return response.json() as Promise<ResumeSummary[]>;
@@ -80,7 +82,7 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
       .catch(error => {if (!ignore) setNotice({kind: "error", text: error instanceof Error ? error.message : "Resume versions could not be loaded"});})
       .finally(() => {if (!ignore) setLoading(false);});
     return () => {ignore = true;};
-  }, [apiBase]);
+  }, [apiBase, apiFetch]);
 
   const upload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,7 +94,7 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
     data.append("file", file);
     data.append("master", String(makeMaster));
     try {
-      const response = await fetch(`${apiBase}/resumes`, {method: "POST", body: data});
+      const response = await apiFetch(`${apiBase}/resumes`, {method: "POST", body: data});
       if (!response.ok) throw new Error(await errorMessage(response));
       const created = await response.json() as ResumeDetails;
       setFile(null);
@@ -112,7 +114,7 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
     setAction(id + ":details");
     setNotice(null);
     try {
-      const response = await fetch(`${apiBase}/resumes/${id}`, {cache: "no-store"});
+      const response = await apiFetch(`${apiBase}/resumes/${id}`, {cache: "no-store"});
       if (!response.ok) throw new Error(await errorMessage(response));
       setSelected(await response.json() as ResumeDetails);
     } catch (error) {
@@ -127,7 +129,7 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
     setAction(resume.id + ":" + operation);
     setNotice(null);
     try {
-      const response = await fetch(`${apiBase}/resumes/${resume.id}${operation === "activate" ? "/activate" : operation === "parse" ? "/parse" : ""}`, {
+      const response = await apiFetch(`${apiBase}/resumes/${resume.id}${operation === "activate" ? "/activate" : operation === "parse" ? "/parse" : ""}`, {
         method: operation === "delete" ? "DELETE" : "POST",
       });
       if (!response.ok) throw new Error(await errorMessage(response));
@@ -173,8 +175,8 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
           </div>
           <div className="resumeActions">
             <button onClick={() => void details(resume.id)} disabled={action?.startsWith(resume.id)}>Details</button>
-            <a href={`${apiBase}/resumes/${resume.id}/download?inline=true`} target="_blank" rel="noreferrer">View</a>
-            <a href={`${apiBase}/resumes/${resume.id}/download`}>Download</a>
+            <button onClick={() => void downloadFile(`${apiBase}/resumes/${resume.id}/download?inline=true`, {inline: true})}>View</button>
+            <button onClick={() => void downloadFile(`${apiBase}/resumes/${resume.id}/download`, {filename: resume.filename})}>Download</button>
             {!resume.master && <button onClick={() => void mutate(resume, "activate")} disabled={action?.startsWith(resume.id)}>Make master</button>}
             <button onClick={() => void mutate(resume, "parse")} disabled={action?.startsWith(resume.id)}>Reparse</button>
             <button className="danger" title={resume.master ? "Activate another version before deleting the master resume" : "Delete this version"} disabled={resume.master || action?.startsWith(resume.id)} onClick={() => void mutate(resume, "delete")}>{resume.master ? "Master protected" : "Delete"}</button>
@@ -193,7 +195,7 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
       {selected.parsed.professionalSummary && <><h3>Professional summary</h3><p>{selected.parsed.professionalSummary}</p></>}
       <h3>Parsed skills</h3><div className="chips good">{selected.parsed.skills.map(skill => <span key={skill}>{skill}</span>)}</div>
       <h3>Experience</h3>{selected.parsed.experience.length === 0 ? <p>No structured experience identified. The original extracted text remains preserved.</p> : selected.parsed.experience.map((entry, index) => <div className="experienceItem" key={`${entry.employer}-${entry.employmentDates}-${index}`}><b>{[entry.jobTitle, entry.employer].filter(Boolean).join(" · ")}</b><small>{entry.employmentDates}</small></div>)}
-      <div className="actions"><a href={`${apiBase}/resumes/${selected.id}/download?inline=true`} target="_blank" rel="noreferrer">View file</a><a className="primary" href={`${apiBase}/resumes/${selected.id}/download`}>Download</a></div>
+      <div className="actions"><button onClick={() => void downloadFile(`${apiBase}/resumes/${selected.id}/download?inline=true`, {inline: true})}>View file</button><button className="primary" onClick={() => void downloadFile(`${apiBase}/resumes/${selected.id}/download`, {filename: selected.filename})}>Download</button></div>
     </aside></div>}
   </div>;
 }

@@ -1,0 +1,12 @@
+.safety small { overflow: hidden; text-overflow: ellipsis; }
+.safety button { margin-top: 10px; border: 0; background: transparent; color: #d8e7e0; padding: 0; text-decoration: underline; cursor: pointer; }
+.primary:disabled { opacity: .6; cursor: not-allowed; }
+.authLoading { min-height: 100vh; display: grid; place-items: center; color: var(--muted); }
+.loginPage { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: linear-gradient(145deg, #eff7f2, #f8faf9); }
+.loginCard { width: min(440px, 100%); background: white; border: 1px solid var(--line); border-radius: 16px; padding: 34px; box-shadow: 0 18px 60px #173c2c14; }
+.loginBrand { padding: 0 0 32px; color: var(--ink); }
+.loginCard > p { color: var(--muted); line-height: 1.5; }
+.loginCard form { display: grid; gap: 10px; margin: 25px 0 20px; }
+.loginCard label { font-size: 13px; font-weight: 700; }
+.loginCard input { border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: inherit; }
+.loginLink { display: inline-block; margin-top: 18px; text-decoration: none; }

@@ -3,6 +3,7 @@
 import {useEffect, useMemo, useState} from "react";
 import ResumeVersions from "./resume-versions";
 import ApplicationWorkflow from "./application-workflow";
+import {AuthenticationRequiredError, useAuth} from "./auth-provider";
 
 type Job = {id:string; title:string|null; companyId:string|null; companyName?:string|null; description:string|null; location:string|null; country:string|null; city:string|null; employmentType:string|null; experienceMin:number|null; experienceMax:number|null; salaryMin:number|null; salaryMax:number|null; salaryCurrency:string|null; source:string|null; sourceJobId:string|null; jobUrl:string|null; postedAt:string|null; scrapedAt:string|null; status:string|null; createdAt:string|null; updatedAt:string|null};
 type NormalizedJob = {id:string; title:string; companyId:string; companyName:string; location:string; city:string; source:string; status:string; postedAt:string; description:string; experienceMin:number|null; experienceMax:number|null; jobUrl:string};
@@ -24,6 +25,7 @@ const demo:NormalizedJob[] = [
 ];
 
 export default function Home() {
+  const {apiFetch, session, signOut} = useAuth();
   const [jobs, setJobs] = useState<NormalizedJob[]>(demo);
   const [active, setActive] = useState("Overview");
   const [query, setQuery] = useState("");
@@ -37,12 +39,12 @@ export default function Home() {
   const [packageNotice,setPackageNotice]=useState<string|null>(null);
 
   useEffect(() => {
-    fetch(`${api}/jobs/page?size=50`)
+    apiFetch(`${api}/jobs/page?size=50`)
       .then(response => {if (!response.ok) throw new Error(); return response.json() as Promise<JobPage>;})
       .then(data => setJobs(Array.isArray(data.content) ? data.content.map(normalizeJob) : demo))
-      .catch(() => setOffline(true))
+      .catch(error => {if (!(error instanceof AuthenticationRequiredError)) setOffline(true);})
       .finally(() => setLoading(false));
-  }, []);
+  }, [apiFetch]);
 
   const filtered = useMemo(() => jobs
     .filter(job => (job.title + " " + job.location).toLowerCase().includes(query.toLowerCase()) && (status === "ALL" || job.status === status))
@@ -53,13 +55,13 @@ export default function Home() {
 
   const navigate = (name:string) => {setActive(name); setSelected(null);};
   const workflowViews=["Pending Review","Ready to Apply","Auto Applied","Failed Applications","Successfully Applied","Cover Letters"];
-  const generatePackage=async(job:NormalizedJob)=>{let confirmed=false;if(score(job)<90){confirmed=window.confirm("This job may have LOW confidence. Confirm manual review before generating its package?");if(!confirmed)return;}setPackageBusy(true);setPackageNotice(null);try{const response=await fetch(`${api}/applications/packages`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:job.id,lowConfidenceConfirmed:confirmed})});const body=await response.json().catch(()=>null) as {message?:string}|null;if(!response.ok)throw new Error(body?.message||`Request failed (${response.status})`);setPackageNotice("Application package generated and routed to Pending Review.");setSelected(null);navigate("Pending Review");}catch(error){setPackageNotice(error instanceof Error?error.message:"Package generation failed");}finally{setPackageBusy(false);}};
+  const generatePackage=async(job:NormalizedJob)=>{let confirmed=false;if(score(job)<90){confirmed=window.confirm("This job may have LOW confidence. Confirm manual review before generating its package?");if(!confirmed)return;}setPackageBusy(true);setPackageNotice(null);try{const response=await apiFetch(`${api}/applications/packages`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:job.id,lowConfidenceConfirmed:confirmed})});const body=await response.json().catch(()=>null) as {message?:string}|null;if(!response.ok)throw new Error(body?.message||`Request failed (${response.status})`);setPackageNotice("Application package generated and routed to Pending Review.");setSelected(null);navigate("Pending Review");}catch(error){setPackageNotice(error instanceof Error?error.message:"Package generation failed");}finally{setPackageBusy(false);}};
 
   return <div className="shell">
     <aside>
       <div className="brand"><span>CA</span><div>Career Assistant<small>UAE DevOps</small></div></div>
       <nav>{nav.map((name, index) => <button key={name} className={active === name ? "active" : ""} onClick={() => navigate(name)}><i>{navIcons[index]}</i>{name}</button>)}</nav>
-      <div className="safety"><b>Dry-run protected</b><small>No real applications are submitted.</small></div>
+      <div className="safety"><b>Dry-run protected</b><small>{session?.user.email || "Authenticated user"}</small><button onClick={() => void signOut()}>Log out</button></div>
     </aside>
     <main>
       <header><div><p className="eyebrow">CAREER WORKSPACE</p><h1>{active}</h1><p>UAE roles matched to your verified experience and skills.</p></div>{active !== "Resume Versions" && <button className="primary" onClick={() => navigate("New Jobs")}>＋ Review new jobs</button>}</header>
