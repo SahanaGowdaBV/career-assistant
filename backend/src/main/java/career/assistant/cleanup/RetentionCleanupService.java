@@ -79,7 +79,10 @@ public class RetentionCleanupService {
         this.successfulApplicationDays = successfulApplicationDays;
     }
 
-    @Scheduled(cron = "${career.cleanup.cron:0 30 2 * * *}")
+    @Scheduled(
+            cron = "${career.cleanup.cron:0 30 2 * * *}",
+            zone = "${career.cleanup.zone:Asia/Kolkata}"
+    )
     @Transactional
     public void scheduled() {
         if (scheduledCleanupEnabled) {
