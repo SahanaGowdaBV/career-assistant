@@ -45,7 +45,7 @@ public class SecurityConfiguration {
                 .map(value -> value.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toUnmodifiableSet());
         if (this.allowedEmails.isEmpty()) {
-            throw new IllegalStateException("APP_ALLOWED_EMAILSS must contain at least one email address");
+            throw new IllegalStateException("APP_ALLOWED_EMAILS must contain at least one email address");
         }
     }
 

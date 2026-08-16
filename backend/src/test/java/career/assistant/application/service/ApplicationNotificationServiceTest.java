@@ -26,6 +26,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -139,6 +140,18 @@ class ApplicationNotificationServiceTest {
 
         assertFalse(service.sendVerifiedSuccessOnce(application(ApplicationStatus.AUTO_APPLIED), "95"));
         assertTrue(sender.messages.isEmpty());
+    }
+
+    @Test
+    void enabledMailRequiresConfiguredNotificationRecipient() {
+        assertThrows(IllegalStateException.class, () -> new ApplicationNotificationService(
+                applications,
+                companies,
+                sender,
+                true,
+                "sender@example.com",
+                "  "
+        ));
     }
 
     private Application application(ApplicationStatus status) {

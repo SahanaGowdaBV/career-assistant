@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -115,11 +116,12 @@ class SecurityConfigurationTest {
 
     @Test
     void missingAllowedEmailConfigurationFailsClosed() {
-        assertThrows(IllegalStateException.class, () -> new SecurityConfiguration(
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> new SecurityConfiguration(
                 ISSUER,
                 ISSUER + "/.well-known/jwks.json",
                 "  "
         ));
+        assertEquals("APP_ALLOWED_EMAILS must contain at least one email address", exception.getMessage());
     }
 
     private Jwt jwt(String token, String email) {

@@ -38,14 +38,17 @@ public class ApplicationNotificationService {
             JavaMailSender sender,
             @Value("${career.mail.enabled:false}") boolean enabled,
             @Value("${career.mail.username:}") String username,
-            @Value("${career.mail.notification-to:sahana.gowda2227@gmail.com}") String notificationRecipient
+            @Value("${career.mail.notification-to:}") String notificationRecipient
     ) {
         this.applications = applications;
         this.companies = companies;
         this.sender = sender;
         this.enabled = enabled;
         this.username = username;
-        this.notificationRecipient = notificationRecipient;
+        this.notificationRecipient = notificationRecipient == null ? "" : notificationRecipient.trim();
+        if (enabled && this.notificationRecipient.isBlank()) {
+            throw new IllegalStateException("APPLICATION_NOTIFICATION_TO must be configured when mail is enabled");
+        }
     }
 
     @Transactional
