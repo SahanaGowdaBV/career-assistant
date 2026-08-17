@@ -19,4 +19,12 @@ public interface ApplicationRepository
     boolean existsByJobId(UUID jobId);
 
     List<Application> findByStatus(ApplicationStatus status);
+    long countByStatus(ApplicationStatus status);
+
+    long countByStatusAndAppliedAtBetween(ApplicationStatus status, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
+
+    List<Application> findByUpdatedAtBefore(java.time.OffsetDateTime cutoff);
+
+    boolean existsByResumeVersionIdAndStatusIn(UUID resumeVersionId, java.util.Collection<ApplicationStatus> statuses);
+    boolean existsByCoverLetterIdAndStatusIn(UUID coverLetterId, java.util.Collection<ApplicationStatus> statuses);
 }

@@ -1,69 +1,81 @@
-import Image from "next/image";
+"use client";
+
+import {useEffect, useMemo, useState} from "react";
+import ResumeVersions from "./resume-versions";
+import ApplicationWorkflow from "./application-workflow";
+import {AuthenticationRequiredError, useAuth} from "./auth-provider";
+
+type Job = {id:string; title:string|null; companyId:string|null; companyName?:string|null; description:string|null; location:string|null; country:string|null; city:string|null; employmentType:string|null; experienceMin:number|null; experienceMax:number|null; salaryMin:number|null; salaryMax:number|null; salaryCurrency:string|null; source:string|null; sourceJobId:string|null; jobUrl:string|null; postedAt:string|null; scrapedAt:string|null; status:string|null; createdAt:string|null; updatedAt:string|null};
+type NormalizedJob = {id:string; title:string; companyId:string; companyName:string; location:string; city:string; source:string; status:string; postedAt:string; description:string; experienceMin:number|null; experienceMax:number|null; jobUrl:string};
+type JobPage = {content?: Job[] | null};
+
+const api = process.env.NEXT_PUBLIC_API_URL || "";
+const skills = ["AWS", "Kubernetes", "Terraform", "Docker", "GitHub Actions", "Helm", "Linux", "CI/CD", "Grafana", "Monitoring"];
+const nav = ["Overview", "New Jobs", "High Score Jobs", "Pending Review", "Ready to Apply", "Auto Applied", "Failed Applications", "Successfully Applied", "Resume Versions", "Cover Letters", "Companies", "Analytics", "Settings"];
+const navIcons = ["⌂", "＋", "★", "◷", "→", "⚡", "!", "✓", "▤", "✉", "◇", "↗", "⚙"];
+const text = (value:string|null|undefined, fallback="") => typeof value === "string" ? value : fallback;
+const normalizeJob = (job:Job, index:number):NormalizedJob => ({id:text(job.id, `unknown-job-${index}`), title:text(job.title, "Untitled role"), companyId:text(job.companyId), companyName:text(job.companyName), location:text(job.location, "Location unavailable"), city:text(job.city), source:text(job.source, "UNKNOWN"), status:text(job.status, "UNKNOWN"), postedAt:text(job.postedAt), description:text(job.description), experienceMin:typeof job.experienceMin === "number" ? job.experienceMin : null, experienceMax:typeof job.experienceMax === "number" ? job.experienceMax : null, jobUrl:text(job.jobUrl)});
+const dateValue = (value:string) => {const parsed=Date.parse(value); return Number.isNaN(parsed) ? 0 : parsed;};
+const formatDate = (value:string) => {const parsed=Date.parse(value); return Number.isNaN(parsed) ? "Date unavailable" : new Date(parsed).toLocaleDateString("en-AE", {month:"short", day:"numeric"});};
+const formatExperience = (minimum:number|null, maximum:number|null) => minimum !== null && maximum !== null ? `${minimum}–${maximum} years` : minimum !== null ? `${minimum}+ years` : maximum !== null ? `Up to ${maximum} years` : "Experience not specified";
+const demo:NormalizedJob[] = [
+  {id:"demo-1", title:"Senior DevOps Engineer", companyId:"", companyName:"", location:"Dubai, UAE", city:"Dubai", source:"LINKEDIN", status:"HIGH_SCORE", postedAt:"2026-08-14T08:00:00Z", description:"Build AWS and Kubernetes platforms using Terraform, Helm, Docker, GitHub Actions, Linux and Grafana.", experienceMin:5, experienceMax:8, jobUrl:"https://example.com/jobs/devops"},
+  {id:"demo-2", title:"Site Reliability Engineer", companyId:"", companyName:"", location:"Abu Dhabi, UAE", city:"Abu Dhabi", source:"COMPANY_CAREERS", status:"NEW", postedAt:"2026-08-13T09:00:00Z", description:"Own SRE, monitoring, CI/CD and cloud reliability practices.", experienceMin:4, experienceMax:7, jobUrl:"https://example.com/jobs/sre"},
+  {id:"demo-3", title:"Platform Engineer", companyId:"", companyName:"", location:"UAE Remote", city:"Remote", source:"FIXTURE", status:"PENDING_REVIEW", postedAt:"2026-08-12T09:00:00Z", description:"Platform engineering with Kubernetes, AWS and Terraform.", experienceMin:4, experienceMax:6, jobUrl:"https://example.com/jobs/platform"},
+];
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const {apiFetch, session, signOut} = useAuth();
+  const [jobs, setJobs] = useState<NormalizedJob[]>(demo);
+  const [active, setActive] = useState("Overview");
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("ALL");
+  const [sort, setSort] = useState("score");
+  const [selected, setSelected] = useState<NormalizedJob|null>(null);
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+  const [page, setPage] = useState(1);
+  const [packageBusy,setPackageBusy]=useState(false);
+  const [packageNotice,setPackageNotice]=useState<string|null>(null);
+
+  useEffect(() => {
+    apiFetch(`${api}/jobs/page?size=50`)
+      .then(response => {if (!response.ok) throw new Error(); return response.json() as Promise<JobPage>;})
+      .then(data => setJobs(Array.isArray(data.content) ? data.content.map(normalizeJob) : demo))
+      .catch(error => {if (!(error instanceof AuthenticationRequiredError)) setOffline(true);})
+      .finally(() => setLoading(false));
+  }, [apiFetch]);
+
+  const filtered = useMemo(() => jobs
+    .filter(job => (job.title + " " + job.location).toLowerCase().includes(query.toLowerCase()) && (status === "ALL" || job.status === status))
+    .sort((a, b) => sort === "title" ? a.title.localeCompare(b.title) : dateValue(b.postedAt) - dateValue(a.postedAt)), [jobs, query, status, sort]);
+  const score = (job:NormalizedJob) => Math.min(98, 45 + skills.filter(skill => job.description.toLowerCase().includes(skill.toLowerCase())).length * 6);
+  const shown = filtered.slice((page - 1) * 8, page * 8);
+  const counts = {New:jobs.filter(job => job.status === "NEW").length, "High score":jobs.filter(job => score(job) >= 75).length, "Pending review":jobs.filter(job => job.status === "PENDING_REVIEW").length, Applied:jobs.filter(job => job.status.includes("APPLIED")).length};
+
+  const navigate = (name:string) => {setActive(name); setSelected(null);};
+  const workflowViews=["Pending Review","Ready to Apply","Auto Applied","Failed Applications","Successfully Applied","Cover Letters"];
+  const generatePackage=async(job:NormalizedJob)=>{let confirmed=false;if(score(job)<90){confirmed=window.confirm("This job may have LOW confidence. Confirm manual review before generating its package?");if(!confirmed)return;}setPackageBusy(true);setPackageNotice(null);try{const response=await apiFetch(`${api}/applications/packages`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:job.id,lowConfidenceConfirmed:confirmed})});const body=await response.json().catch(()=>null) as {message?:string}|null;if(!response.ok)throw new Error(body?.message||`Request failed (${response.status})`);setPackageNotice("Application package generated and routed to Pending Review.");setSelected(null);navigate("Pending Review");}catch(error){setPackageNotice(error instanceof Error?error.message:"Package generation failed");}finally{setPackageBusy(false);}};
+
+  return <div className="shell">
+    <aside>
+      <div className="brand"><span>CA</span><div>Career Assistant<small>UAE DevOps</small></div></div>
+      <nav>{nav.map((name, index) => <button key={name} className={active === name ? "active" : ""} onClick={() => navigate(name)}><i>{navIcons[index]}</i>{name}</button>)}</nav>
+      <div className="safety"><b>Dry-run protected</b><small>{session?.user.email || "Authenticated user"}</small><button onClick={() => void signOut()}>Log out</button></div>
+    </aside>
+    <main>
+      <header><div><p className="eyebrow">CAREER WORKSPACE</p><h1>{active}</h1><p>UAE roles matched to your verified experience and skills.</p></div>{active !== "Resume Versions" && <button className="primary" onClick={() => navigate("New Jobs")}>＋ Review new jobs</button>}</header>
+      {active === "Resume Versions" ? <ResumeVersions apiBase={api}/> : workflowViews.includes(active) ? <ApplicationWorkflow apiBase={api} view={active}/> : <>
+        {offline && <div className="notice">Demo mode · Backend unavailable. Showing safe UAE fixtures.</div>}
+        <section className="cards">{Object.entries(counts).map(([name, value], index) => <article key={name}><span className={`dot d${index}`}/><div><small>{name}</small><strong>{value}</strong><em>{index === 1 ? "75+ match" : "Current pipeline"}</em></div></article>)}</section>
+        <section className="panel">
+          <div className="panelHead"><div><h2>Recent opportunities</h2><p>Dubai, Abu Dhabi, Sharjah and UAE remote · 4–8 years</p></div><button className="ghost" onClick={() => navigate("Analytics")}>View analytics ↗</button></div>
+          <div className="filters"><label>⌕<input aria-label="Search jobs" placeholder="Search role or location" value={query} onChange={event => {setQuery(event.target.value); setPage(1);}}/></label><select aria-label="Status" value={status} onChange={event => setStatus(event.target.value)}><option>ALL</option><option>NEW</option><option>HIGH_SCORE</option><option>PENDING_REVIEW</option><option>FAILED</option></select><select aria-label="Sort" value={sort} onChange={event => setSort(event.target.value)}><option value="score">Newest first</option><option value="title">Title A–Z</option></select></div>
+          {loading ? <div className="state">Loading opportunities…</div> : shown.length === 0 ? <div className="state">No jobs match these filters.</div> : <div className="tableWrap"><table><thead><tr><th>ROLE</th><th>LOCATION</th><th>MATCH</th><th>STATUS</th><th>POSTED</th><th/></tr></thead><tbody>{shown.map(job => <tr key={job.id} onClick={() => setSelected(job)}><td><b>{job.title}</b><small>{job.source.replaceAll("_", " ")}</small></td><td>{job.location}</td><td><span className="score">{score(job)}%</span></td><td><span className={`badge ${job.status.toLowerCase()}`}>{job.status.replaceAll("_", " ")}</span></td><td>{formatDate(job.postedAt)}</td><td>›</td></tr>)}</tbody></table></div>}
+          <footer><span>Showing {shown.length} of {filtered.length} jobs</span><div><button disabled={page === 1} onClick={() => setPage(value => value - 1)}>‹</button><b>{page}</b><button disabled={page * 8 >= filtered.length} onClick={() => setPage(value => value + 1)}>›</button></div></footer>
+        </section>
+      </>}
+    </main>
+    {packageNotice&&<div className="notice">{packageNotice}</div>}{selected && <div className="scrim" onClick={() => setSelected(null)}><aside className="drawer" onClick={event => event.stopPropagation()}><button className="close" onClick={() => setSelected(null)}>×</button><p className="eyebrow">{selected.source}</p><h2>{selected.title}</h2><p>{selected.location} · {formatExperience(selected.experienceMin, selected.experienceMax)}</p><div className="bigScore"><strong>{score(selected)}%</strong><span>Overall match<small>Skills, location and experience</small></span></div><h3>Score explanation</h3><p>Strong UAE location and target experience overlap. Skills are matched only when present in the source description.</p><h3>Matched skills</h3><div className="chips good">{skills.filter(skill => selected.description.toLowerCase().includes(skill.toLowerCase())).map(skill => <span key={skill}>✓ {skill}</span>)}</div><h3>Missing skills</h3><div className="chips">{skills.filter(skill => !selected.description.toLowerCase().includes(skill.toLowerCase())).map(skill => <span key={skill}>{skill}</span>)}</div><div className="actions"><button className="primary" disabled={packageBusy||selected.id.startsWith("demo")} onClick={()=>void generatePackage(selected)}>{packageBusy?"Generating…":"Generate application package"}</button></div>{selected.id.startsWith("demo")&&<p>Connect the backend and select a persisted job to generate documents.</p>}{selected.jobUrl && <a className="source" href={selected.jobUrl} target="_blank" rel="noreferrer">Open source posting ↗</a>}</aside></div>}
+  </div>;
 }

@@ -46,6 +46,18 @@ public class JobScore {
     @Column(name = "salary_score", precision = 5, scale = 2)
     private BigDecimal salaryScore;
 
+    @Column(name = "target_title_score", precision = 5, scale = 2)
+    private BigDecimal targetTitleScore;
+
+    @Column(name = "required_skills_score", precision = 5, scale = 2)
+    private BigDecimal requiredSkillsScore;
+
+    @Column(name = "preferred_skills_score", precision = 5, scale = 2)
+    private BigDecimal preferredSkillsScore;
+
+    @Column(name = "keyword_coverage_score", precision = 5, scale = 2)
+    private BigDecimal keywordCoverageScore;
+
     @Column(name = "matched_keywords", columnDefinition = "TEXT")
     private String matchedKeywords;
 
@@ -55,6 +67,9 @@ public class JobScore {
     @Column(name = "scoring_reason", columnDefinition = "TEXT")
     private String scoringReason;
 
+    @Transient
+    private String scoringConfidence;
+
     @Column(name = "scored_at", nullable = false)
     private OffsetDateTime scoredAt;
 
@@ -63,6 +78,11 @@ public class JobScore {
         if (scoredAt == null) {
             scoredAt = OffsetDateTime.now();
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        scoredAt = OffsetDateTime.now();
     }
 
     public UUID getId() {
@@ -117,6 +137,15 @@ public class JobScore {
         this.salaryScore = salaryScore;
     }
 
+    public BigDecimal getTargetTitleScore() { return targetTitleScore; }
+    public void setTargetTitleScore(BigDecimal targetTitleScore) { this.targetTitleScore = targetTitleScore; }
+    public BigDecimal getRequiredSkillsScore() { return requiredSkillsScore; }
+    public void setRequiredSkillsScore(BigDecimal requiredSkillsScore) { this.requiredSkillsScore = requiredSkillsScore; }
+    public BigDecimal getPreferredSkillsScore() { return preferredSkillsScore; }
+    public void setPreferredSkillsScore(BigDecimal preferredSkillsScore) { this.preferredSkillsScore = preferredSkillsScore; }
+    public BigDecimal getKeywordCoverageScore() { return keywordCoverageScore; }
+    public void setKeywordCoverageScore(BigDecimal keywordCoverageScore) { this.keywordCoverageScore = keywordCoverageScore; }
+
     public String getMatchedKeywords() {
         return matchedKeywords;
     }
@@ -139,6 +168,14 @@ public class JobScore {
 
     public void setScoringReason(String scoringReason) {
         this.scoringReason = scoringReason;
+    }
+
+    public String getScoringConfidence() {
+        return scoringConfidence;
+    }
+
+    public void setScoringConfidence(String scoringConfidence) {
+        this.scoringConfidence = scoringConfidence;
     }
 
     public OffsetDateTime getScoredAt() {

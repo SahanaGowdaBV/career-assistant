@@ -1,0 +1,1 @@
+package career.assistant.settings; import career.assistant.settings.entity.UserSettings; import org.springframework.data.jpa.repository.JpaRepository; import java.util.UUID; public interface SettingsRepository extends JpaRepository<UserSettings,UUID>{}

@@ -8,5 +8,10 @@ public enum JobSource {
     GULF_TALENT,
     INDEED,
     COMPANY_CAREER_PAGE,
-    WORKDAY
+    WORKDAY,
+    ORACLE_HCM,
+    GREENHOUSE,
+    LEVER,
+    WORKABLE,
+    SMARTRECRUITERS
 }

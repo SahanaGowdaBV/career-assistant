@@ -1,13 +1,21 @@
 package career.assistant.job.controller;
 
-import career.assistant.job.entity.Job;
+import career.assistant.job.dto.CreateJobRequest;
+import career.assistant.job.dto.JobResponse;
+import career.assistant.job.mapper.JobMapper;
 import career.assistant.job.service.JobService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Set;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import career.assistant.job.entity.Job;
 
 @RestController
 @RequestMapping("/api/jobs")
@@ -20,45 +28,63 @@ public class JobController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Job>> getAllJobs() {
-        return ResponseEntity.ok(jobService.findAll());
+    public ResponseEntity<List<JobResponse>> getAllJobs() {
+        return ResponseEntity.ok(jobService.findAll().stream()
+                .map(JobMapper::toResponse)
+                .toList());
     }
 
+    @GetMapping("/page")
+    public Page<JobResponse> getJobs(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String city,
+            @RequestParam(defaultValue = "postedAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
+        Set<String> allowedSorts = Set.of("postedAt", "createdAt", "title", "status");
+        String safeSort = allowedSorts.contains(sort) ? sort : "postedAt";
+        Sort.Direction dir = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        var spec = (org.springframework.data.jpa.domain.Specification<Job>) (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (search != null && !search.isBlank()) {
+                String q = "%" + search.toLowerCase() + "%";
+                predicates.add(cb.or(cb.like(cb.lower(root.get("title")), q), cb.like(cb.lower(root.get("description")), q)));
+            }
+            if (status != null && !status.isBlank()) predicates.add(cb.equal(root.get("status"), status));
+            if (city != null && !city.isBlank()) predicates.add(cb.equal(cb.lower(root.get("city")), city.toLowerCase()));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        return jobService.search(spec, PageRequest.of(Math.max(0, page), Math.min(Math.max(size, 1), 100), Sort.by(dir, safeSort)))
+                .map(JobMapper::toResponse);
+    }
+
+    @PatchMapping("/{id}/status")
+    public JobResponse updateStatus(@PathVariable UUID id, @Valid @RequestBody StatusRequest request) {
+        return JobMapper.toResponse(jobService.updateStatus(id, request.status()));
+    }
+
+    public record StatusRequest(@jakarta.validation.constraints.NotBlank String status) {}
+
     @GetMapping("/{id}")
-    public ResponseEntity<Job> getJobById(@PathVariable UUID id) {
-        return jobService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<JobResponse> getJobById(@PathVariable UUID id) {
+        return ResponseEntity.ok(JobMapper.toResponse(jobService.findRequired(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Job> createJob(@RequestBody Job job) {
-
-        if (job.getSource() == null || job.getSourceJobId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (jobService.existsBySourceAndSourceJobId(
-                job.getSource(),
-                job.getSourceJobId()
-        )) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
-
+    public ResponseEntity<JobResponse> createJob(
+            @Valid @RequestBody CreateJobRequest request
+    ) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(jobService.save(job));
+                .body(JobMapper.toResponse(
+                        jobService.create(JobMapper.toEntity(request))
+                ));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteJob(@PathVariable UUID id) {
-
-        if (jobService.findById(id).isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
         jobService.deleteById(id);
-
         return ResponseEntity.noContent().build();
     }
 }

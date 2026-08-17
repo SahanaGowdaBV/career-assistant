@@ -1,0 +1,57 @@
+.resumePage { display: grid; gap: 20px; }
+.uploadCard { background: linear-gradient(135deg, #ffffff, #edf7f1); border: 1px solid var(--line); border-radius: 13px; padding: 24px; display: grid; grid-template-columns: 1fr minmax(320px, 520px); gap: 32px; align-items: center; }
+.uploadCard h2 { margin: 4px 0 8px; font-size: 20px; }
+.uploadCard p { margin: 0; color: var(--muted); line-height: 1.5; }
+.uploadCard form { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.filePicker { border: 1px dashed #7fa692; background: white; border-radius: 8px; min-height: 43px; display: flex; align-items: center; padding: 9px 12px; color: var(--green); font-weight: 700; cursor: pointer; overflow: hidden; }
+.filePicker span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filePicker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.masterCheck { grid-column: 1 / -1; color: var(--muted); font-size: 13px; display: flex; gap: 8px; align-items: center; }
+.masterCheck input { accent-color: var(--green); }
+.resumeNotice { border-radius: 8px; padding: 11px 14px; font-size: 13px; }
+.resumeNotice.success { color: #155f40; background: #e4f4ea; border: 1px solid #a8d9bc; }
+.resumeNotice.error { color: #8a2f2b; background: #fff0ef; border: 1px solid #e7b9b5; }
+.resumePanel { overflow: visible; }
+.resumePanel .state { display: grid; gap: 8px; }
+.resumePanel .state span { font-size: 13px; }
+.resumeList { border-top: 1px solid var(--line); }
+.resumeList article { padding: 19px 22px; display: grid; grid-template-columns: 54px minmax(240px, 1fr) auto; gap: 15px; align-items: start; border-bottom: 1px solid #edf0ee; }
+.resumeList article:last-child { border-bottom: 0; }
+.resumeList article.masterResume { background: #f4fbf7; box-shadow: inset 3px 0 var(--green); }
+.fileIcon { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 9px; background: #eaf1ed; color: var(--green); font-size: 10px; font-weight: 800; }
+.resumeMeta > div:first-child { display: flex; align-items: center; gap: 9px; }
+.resumeMeta h3 { font-size: 15px; margin: 1px 0; word-break: break-word; }
+.resumeMeta p { margin: 6px 0 10px; font-size: 12px; color: var(--muted); }
+.resumeMeta .chips em { color: var(--muted); font-size: 12px; }
+.badge.master { color: #176340; background: #dff3e7; }
+.badge.customized { color: #755cb0; background: #f0ebfa; }
+.badge.ready, .badge.uploaded { color: #2d689b; background: #eaf3fa; }
+.resumeActions { max-width: 335px; display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.resumeActions button, .resumeActions a { border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: white; padding: 7px 9px; font-size: 11px; text-decoration: none; cursor: pointer; }
+.resumeActions button:disabled { opacity: .55; cursor: not-allowed; }
+.resumeActions .danger { color: #8a2f2b; }
+.resumeDrawer .detailCallout { background: var(--pale); color: var(--green); border-radius: 8px; padding: 12px; margin: 18px 0; }
+.resumeFacts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; }
+.resumeFacts div { padding: 12px; border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.resumeFacts dt { color: var(--muted); font-size: 11px; }
+.resumeFacts dd { margin: 4px 0 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.experienceItem { border-left: 2px solid #c9ddd2; padding: 3px 0 3px 12px; margin: 10px 0; }
+.experienceItem b, .experienceItem small { display: block; }
+.experienceItem small { color: var(--muted); margin-top: 4px; }
+.resumeDrawer .actions a, .resumeDrawer .actions button { text-align: center; padding: 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: white; text-decoration: none; font-weight: 700; cursor: pointer; }
+.resumeDrawer .actions a.primary, .resumeDrawer .actions button.primary { color: white; background: var(--green); border-color: var(--green); }
+
+@media (max-width: 1050px) {
+  .uploadCard { grid-template-columns: 1fr; gap: 18px; }
+  .resumeList article { grid-template-columns: 54px 1fr; }
+  .resumeActions { grid-column: 2; max-width: none; justify-content: flex-start; }
+}
+
+@media (max-width: 620px) {
+  .uploadCard { padding: 18px; }
+  .uploadCard form { grid-template-columns: 1fr; }
+  .resumeList article { grid-template-columns: 1fr; }
+  .fileIcon { display: none; }
+  .resumeActions { grid-column: 1; }
+  .resumeFacts { grid-template-columns: 1fr; }
+}

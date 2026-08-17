@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+target
+.git
+.gitignore
+*.log
+src/main/resources/application-local.properties
+src/main/resources/application-local.propertiesk

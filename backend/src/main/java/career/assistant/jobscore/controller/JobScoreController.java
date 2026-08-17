@@ -1,8 +1,8 @@
 package career.assistant.jobscore.controller;
 
-import career.assistant.job.entity.Job;
 import career.assistant.job.service.JobService;
-import career.assistant.jobscore.entity.JobScore;
+import career.assistant.jobscore.dto.JobScoreResponse;
+import career.assistant.jobscore.mapper.JobScoreMapper;
 import career.assistant.jobscore.service.JobScoringService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,14 +25,16 @@ public class JobScoreController {
     }
 
     @PostMapping("/{id}/score")
-    public ResponseEntity<JobScore> scoreJob(
+    public ResponseEntity<JobScoreResponse> scoreJob(
             @PathVariable UUID id
     ) {
+        return ResponseEntity.ok(JobScoreMapper.toResponse(
+                jobScoringService.scoreJob(jobService.findRequired(id))
+        ));
+    }
 
-        return jobService.findById(id)
-                .map(job -> ResponseEntity.ok(
-                        jobScoringService.scoreJob(job)
-                ))
-                .orElse(ResponseEntity.notFound().build());
+    @GetMapping("/{id}/score")
+    public ResponseEntity<JobScoreResponse> getScore(@PathVariable UUID id) {
+        return ResponseEntity.ok(JobScoreMapper.toResponse(jobScoringService.findOrScore(jobService.findRequired(id))));
     }
 }
