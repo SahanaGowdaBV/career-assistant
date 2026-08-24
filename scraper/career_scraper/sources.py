@@ -70,6 +70,38 @@ def fetch_lever(source: dict[str, Any], client: PublicHttpClient) -> list[RawJob
     return output
 
 
+def fetch_ashby(source: dict[str, Any], client: PublicHttpClient) -> list[RawJob]:
+    slug = source["slug"]
+    payload = client.get_json(f"https://api.ashbyhq.com/posting-api/job-board/{quote(slug)}")
+    jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
+    output = []
+    for item in jobs:
+        if (
+            not isinstance(item, dict)
+            or not item.get("id")
+            or item.get("isListed") is False
+            or not is_target_role(item.get("title", ""))
+        ):
+            continue
+        locations = [clean_text(item.get("location"))]
+        for secondary in item.get("secondaryLocations", []) or []:
+            if isinstance(secondary, dict):
+                locations.append(clean_text(secondary.get("location") or secondary.get("name")))
+            else:
+                locations.append(clean_text(secondary))
+        output.append(RawJob(
+            title=clean_text(item.get("title")),
+            company=source["name"],
+            location=" / ".join(location for location in locations if location),
+            description=clean_text(item.get("descriptionPlain") or item.get("descriptionHtml")),
+            source="COMPANY_CAREER_PAGE",
+            source_id=f"ashby-{slug}-{item['id']}",
+            url=clean_text(item.get("jobUrl") or item.get("applyUrl")),
+            posted_at=item.get("publishedAt"),
+        ))
+    return output
+
+
 def _workday_url(source: dict[str, Any], external_path: str) -> str:
     if external_path.startswith("http"):
         return external_path
@@ -368,6 +400,7 @@ def fetch_official_html(source: dict[str, Any], client: PublicHttpClient) -> lis
 FETCHERS = {
     "greenhouse": fetch_greenhouse,
     "lever": fetch_lever,
+    "ashby": fetch_ashby,
     "workday": fetch_workday,
     "oracle": fetch_oracle,
     "workable": fetch_workable,

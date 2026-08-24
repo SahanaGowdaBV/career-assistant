@@ -1,11 +1,22 @@
 """Verified public, credential-free company career sources.
 
 Each ATS endpoint below was resolved from an official employer career page and
-returned HTTP 200 on 2026-08-14. No session, login, cookie, private API, or
+returned HTTP 200 before inclusion. No session, login, cookie, private API, or
 browser automation is used.
 """
 
 SOURCES = [
+    {
+        "kind": "oracle",
+        "name": "e&",
+        "host": "iaayey.fa.ocs.oraclecloud26.com",
+        "site": "CX_1",
+    },
+    {
+        "kind": "ashby",
+        "name": "Ziina",
+        "slug": "ziina",
+    },
     {
         "kind": "phenom",
         "name": "G42",
@@ -90,4 +101,3 @@ SEARCH_TERMS = (
     "Cloud Architect",
     "Platform Engineer",
 )
-
