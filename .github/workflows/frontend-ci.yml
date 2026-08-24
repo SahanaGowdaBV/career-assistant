@@ -18,3 +18,7 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://api.invalid
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
