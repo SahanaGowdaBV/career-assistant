@@ -72,6 +72,19 @@ def test_live_ingestion_sends_configured_authentication_header(
     assert "test-ingestion-token" not in captured.err
 
 
+@pytest.mark.parametrize(
+    ("base", "expected"),
+    [
+        ("https://backend.example", "https://backend.example/api/scraper/ingest"),
+        ("https://backend.example/", "https://backend.example/api/scraper/ingest"),
+        ("https://backend.example/api", "https://backend.example/api/scraper/ingest"),
+        ("https://backend.example/api/", "https://backend.example/api/scraper/ingest"),
+    ],
+)
+def test_ingestion_url_accepts_root_or_api_base_without_duplicate_api(base: str, expected: str) -> None:
+    assert cli.ingestion_url(base) == expected
+
+
 def test_live_ingestion_fails_before_scraping_when_token_is_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CAREER_API_URL", "https://backend.example/api")
     monkeypatch.delenv("SCRAPER_INGESTION_TOKEN", raising=False)
@@ -97,3 +110,11 @@ def test_dry_run_needs_no_backend_secrets(monkeypatch: pytest.MonkeyPatch, tmp_p
 
     assert cli.main(["--dry-run", "--summary-file", str(tmp_path / "summary.json")]) == 0
     assert client.posts == []
+
+
+@pytest.mark.parametrize("maximum", ["0", "51"])
+def test_maximum_results_is_limited_before_scraping(monkeypatch: pytest.MonkeyPatch, maximum: str) -> None:
+    monkeypatch.setattr(cli, "PublicHttpClient", lambda **_kwargs: pytest.fail("scraping must not start"))
+
+    with pytest.raises(SystemExit, match="--max-results must be between 1 and 50"):
+        cli.main(["--dry-run", "--max-results", maximum])

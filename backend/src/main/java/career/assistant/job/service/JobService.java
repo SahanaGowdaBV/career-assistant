@@ -75,6 +75,10 @@ public class JobService {
         );
     }
 
+    public boolean existsByJobUrlIn(java.util.Collection<String> jobUrls) {
+        return jobRepository.existsByJobUrlIn(jobUrls);
+    }
+
     public void deleteById(UUID id) {
         jobRepository.delete(findRequired(id));
     }

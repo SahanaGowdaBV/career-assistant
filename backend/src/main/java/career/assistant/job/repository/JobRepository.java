@@ -23,5 +23,7 @@ public interface JobRepository extends JpaRepository<Job, UUID>, JpaSpecificatio
             String sourceJobId
     );
 
+    boolean existsByJobUrlIn(java.util.Collection<String> jobUrls);
+
     List<Job> findByStatusInAndUpdatedAtBefore(java.util.Collection<String> statuses, java.time.OffsetDateTime cutoff);
 }

@@ -46,9 +46,16 @@ jobs:
         env:
           CAREER_API_URL: ${{ secrets.CAREER_API_URL }}
           SCRAPER_INGESTION_TOKEN: ${{ secrets.SCRAPER_INGESTION_TOKEN }}
-          DRY_RUN: ${{ github.event_name == 'schedule' && 'true' || inputs.dry_run }}
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
           MAXIMUM_RESULTS: ${{ inputs.maximum_results || '50' }}
         run: |
+          case "$MAXIMUM_RESULTS" in
+            ''|*[!0-9]*) echo "::error::Maximum accepted jobs must be an integer from 1 to 50"; exit 1 ;;
+          esac
+          if [ "$MAXIMUM_RESULTS" -lt 1 ] || [ "$MAXIMUM_RESULTS" -gt 50 ]; then
+            echo "::error::Maximum accepted jobs must be from 1 to 50"
+            exit 1
+          fi
           if [ "$DRY_RUN" = "true" ]; then
             python scraper/run.py --dry-run --max-results "$MAXIMUM_RESULTS" --max-candidates 200 --summary-file scraper-summary.json
           else

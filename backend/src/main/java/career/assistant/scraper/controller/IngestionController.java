@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +53,9 @@ public class IngestionController {
                 rejected++;
                 continue;
             }
-            if (jobs.existsBySourceAndSourceJobId(raw.source(), raw.sourceId())) {
+            String canonicalUrl = canonicalUrl(raw.url());
+            if (jobs.existsBySourceAndSourceJobId(raw.source(), raw.sourceId())
+                    || jobs.existsByJobUrlIn(urlVariants(canonicalUrl))) {
                 duplicates++;
                 continue;
             }
@@ -73,7 +76,7 @@ public class IngestionController {
             job.setExperienceMax(raw.experienceMax());
             job.setSource(raw.source());
             job.setSourceJobId(raw.sourceId());
-            job.setJobUrl(raw.url());
+            job.setJobUrl(canonicalUrl);
             job.setPostedAt(raw.postedAt());
             job.setStatus(raw.experienceUnknown() ? "PENDING_REVIEW" : "NEW");
             saved.add(JobMapper.toResponse(jobs.create(job)));
@@ -99,6 +102,34 @@ public class IngestionController {
         if (normalized.contains("sharjah")) return "Sharjah";
         if (normalized.contains("dubai")) return "Dubai";
         return "Remote";
+    }
+
+    private String canonicalUrl(String value) {
+        URI uri = URI.create(value.trim()).normalize();
+        String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
+        String host = uri.getHost().toLowerCase(Locale.ROOT);
+        int port = uri.getPort();
+        if (("https".equals(scheme) && port == 443) || ("http".equals(scheme) && port == 80)) {
+            port = -1;
+        }
+        String path = uri.getPath();
+        if (path == null || path.isBlank()) {
+            path = "";
+        } else if (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return URI.create(scheme + "://" + host + (port < 0 ? "" : ":" + port) + path
+                + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery())).toString();
+    }
+
+    private List<String> urlVariants(String canonicalUrl) {
+        int queryIndex = canonicalUrl.indexOf('?');
+        String base = queryIndex < 0 ? canonicalUrl : canonicalUrl.substring(0, queryIndex);
+        String query = queryIndex < 0 ? "" : canonicalUrl.substring(queryIndex);
+        String alternate = base.endsWith("/")
+                ? base.substring(0, base.length() - 1) + query
+                : base + "/" + query;
+        return List.of(canonicalUrl, alternate);
     }
 
     public record IngestRequest(boolean dryRun, @NotEmpty List<@Valid IngestJob> jobs) {}

@@ -29,7 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def ingestion_url(base: str) -> str:
     value = base.rstrip("/")
-    return f"{value}/scraper/ingest"
+    if value.lower().endswith("/api"):
+        value = value[:-4]
+    return f"{value}/api/scraper/ingest"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,9 +39,9 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
     dry_run = not args.live
     ingestion_token = None
+    if args.max_results < 1 or args.max_results > 50:
+        raise SystemExit("--max-results must be between 1 and 50")
     if not dry_run:
-        if args.max_results > 50:
-            raise SystemExit("--live permits at most 50 results")
         if not args.api_url:
             raise SystemExit("CAREER_API_URL or --api-url is required for --live")
         parsed = urlparse(args.api_url)
