@@ -34,10 +34,15 @@ public final class JobMapper {
     }
 
     public static JobResponse toResponse(Job job) {
+        return toResponse(job, null);
+    }
+
+    public static JobResponse toResponse(Job job, String companyName) {
         return new JobResponse(
                 job.getId(),
                 job.getTitle(),
                 job.getCompanyId(),
+                companyName,
                 job.getDescription(),
                 job.getLocation(),
                 job.getCountry(),

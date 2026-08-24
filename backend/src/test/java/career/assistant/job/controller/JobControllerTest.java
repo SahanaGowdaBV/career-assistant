@@ -5,6 +5,8 @@ import career.assistant.api.ResourceNotFoundException;
 import career.assistant.job.entity.Job;
 import career.assistant.job.exception.DuplicateJobException;
 import career.assistant.job.service.JobService;
+import career.assistant.company.repository.CompanyRepository;
+import career.assistant.company.entity.Company;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,13 +28,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class JobControllerTest {
 
     private JobService jobService;
+    private CompanyRepository companies;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         jobService = mock(JobService.class);
+        companies = mock(CompanyRepository.class);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new JobController(jobService))
+                .standaloneSetup(new JobController(jobService, companies))
                 .setControllerAdvice(new GlobalApiExceptionHandler())
                 .build();
     }
@@ -41,10 +45,13 @@ class JobControllerTest {
     void returnsJobsAsResponseDtos() throws Exception {
         Job job = job();
         when(jobService.findAll()).thenReturn(List.of(job));
+        Company company = new Company(); company.setName("Ziina");
+        when(companies.findById(job.getCompanyId())).thenReturn(java.util.Optional.of(company));
 
         mockMvc.perform(get("/api/jobs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("Platform Engineer"))
+                .andExpect(jsonPath("$[0].companyName").value("Ziina"))
                 .andExpect(jsonPath("$[0].source").value("LINKEDIN"));
     }
 

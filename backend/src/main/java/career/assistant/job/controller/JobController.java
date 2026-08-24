@@ -16,21 +16,24 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import career.assistant.job.entity.Job;
+import career.assistant.company.repository.CompanyRepository;
 
 @RestController
 @RequestMapping("/api/jobs")
 public class JobController {
 
     private final JobService jobService;
+    private final CompanyRepository companies;
 
-    public JobController(JobService jobService) {
+    public JobController(JobService jobService, CompanyRepository companies) {
         this.jobService = jobService;
+        this.companies = companies;
     }
 
     @GetMapping
     public ResponseEntity<List<JobResponse>> getAllJobs() {
         return ResponseEntity.ok(jobService.findAll().stream()
-                .map(JobMapper::toResponse)
+                .map(this::response)
                 .toList());
     }
 
@@ -56,19 +59,19 @@ public class JobController {
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
         return jobService.search(spec, PageRequest.of(Math.max(0, page), Math.min(Math.max(size, 1), 100), Sort.by(dir, safeSort)))
-                .map(JobMapper::toResponse);
+                .map(this::response);
     }
 
     @PatchMapping("/{id}/status")
     public JobResponse updateStatus(@PathVariable UUID id, @Valid @RequestBody StatusRequest request) {
-        return JobMapper.toResponse(jobService.updateStatus(id, request.status()));
+        return response(jobService.updateStatus(id, request.status()));
     }
 
     public record StatusRequest(@jakarta.validation.constraints.NotBlank String status) {}
 
     @GetMapping("/{id}")
     public ResponseEntity<JobResponse> getJobById(@PathVariable UUID id) {
-        return ResponseEntity.ok(JobMapper.toResponse(jobService.findRequired(id)));
+        return ResponseEntity.ok(response(jobService.findRequired(id)));
     }
 
     @PostMapping
@@ -77,14 +80,17 @@ public class JobController {
     ) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(JobMapper.toResponse(
-                        jobService.create(JobMapper.toEntity(request))
-                ));
+                .body(response(jobService.create(JobMapper.toEntity(request))));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteJob(@PathVariable UUID id) {
         jobService.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private JobResponse response(Job job) {
+        String companyName = companies.findById(job.getCompanyId()).map(value -> value.getName()).orElse(null);
+        return JobMapper.toResponse(job, companyName);
     }
 }

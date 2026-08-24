@@ -10,6 +10,7 @@ public record JobResponse(
         UUID id,
         String title,
         UUID companyId,
+        String companyName,
         String description,
         String location,
         String country,
