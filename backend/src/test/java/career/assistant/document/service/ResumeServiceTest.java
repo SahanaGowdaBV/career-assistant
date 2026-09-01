@@ -5,6 +5,7 @@ import career.assistant.document.customization.TruthfulnessValidator;
 import career.assistant.document.dto.ResumeDetailsResponse;
 import career.assistant.document.entity.ResumeVersion;
 import career.assistant.document.parsing.ResumeParser;
+import career.assistant.document.quality.DocumentQualityGate;
 import career.assistant.document.repository.ResumeVersionRepository;
 import career.assistant.document.storage.InMemoryResumeStorage;
 import career.assistant.document.storage.ResumeStorage;
@@ -104,7 +105,8 @@ class ResumeServiceTest {
                 new ResumeParser(),
                 codec,
                 new ResumeCustomizer(),
-                new TruthfulnessValidator()
+                new TruthfulnessValidator(),
+                new DocumentQualityGate()
         );
     }
 
@@ -117,7 +119,7 @@ class ResumeServiceTest {
                 content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 11);
                 content.setLeading(14);
                 content.newLineAtOffset(60, 740);
-                for (String line : new String[]{"Jane Example", "Professional Summary", "DevOps engineer with verified AWS delivery experience.", "Skills", "AWS, Docker", "Experience", "DevOps Engineer | Example Corp | Jan 2020 - Present"}) {
+                for (String line : new String[]{"Jane Example", "jane@example.com | +971 50 123 4567", "Professional Summary", "DevOps engineer with AWS delivery experience.", "Skills", "AWS, Docker", "Experience", "DevOps Engineer | Example Corp | Jan 2020 - Present", "Built reliable AWS systems."}) {
                     content.showText(line);
                     content.newLine();
                 }

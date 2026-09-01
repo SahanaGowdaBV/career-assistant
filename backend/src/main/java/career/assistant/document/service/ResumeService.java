@@ -11,6 +11,7 @@ import career.assistant.document.model.ParsedResume;
 import career.assistant.document.model.ParsedResumeDocument;
 import career.assistant.document.model.ResumeDownload;
 import career.assistant.document.parsing.ResumeParser;
+import career.assistant.document.quality.DocumentQualityGate;
 import career.assistant.document.repository.ResumeVersionRepository;
 import career.assistant.document.storage.ResumeStorage;
 import career.assistant.document.storage.StoredResumeObject;
@@ -43,6 +44,7 @@ public class ResumeService {
     private final ResumeJsonCodec json;
     private final ResumeCustomizer customizer;
     private final TruthfulnessValidator truthfulnessValidator;
+    private final DocumentQualityGate qualityGate;
 
     public ResumeService(
             ResumeVersionRepository repository,
@@ -52,7 +54,8 @@ public class ResumeService {
             ResumeParser parser,
             ResumeJsonCodec json,
             ResumeCustomizer customizer,
-            TruthfulnessValidator truthfulnessValidator
+            TruthfulnessValidator truthfulnessValidator,
+            DocumentQualityGate qualityGate
     ) {
         this.repository = repository;
         this.jobRepository = jobRepository;
@@ -62,6 +65,7 @@ public class ResumeService {
         this.json = json;
         this.customizer = customizer;
         this.truthfulnessValidator = truthfulnessValidator;
+        this.qualityGate = qualityGate;
     }
 
     @Transactional
@@ -136,8 +140,17 @@ public class ResumeService {
 
     @Transactional
     public ResumeDetailsResponse createCustomized(UUID jobId) {
+        return createCustomized(jobId, true);
+    }
+
+    @Transactional
+    public ResumeDetailsResponse createCustomizedVersion(UUID jobId) {
+        return createCustomized(jobId, false);
+    }
+
+    private ResumeDetailsResponse createCustomized(UUID jobId, boolean reuseExisting) {
         Optional<ResumeVersion> existing = repository.findFirstByJobIdAndCustomizedTrue(jobId);
-        if (existing.isPresent()) return details(existing.get());
+        if (reuseExisting && existing.isPresent()) return details(existing.get());
         ResumeVersion masterEntity = repository.findFirstByMasterResumeTrue()
                 .orElseThrow(() -> new ResumeConflictException("An active master resume is required before customization"));
         Job job = jobRepository.findById(jobId)
@@ -145,6 +158,7 @@ public class ResumeService {
         ParsedResume master = json.readResume(masterEntity.getStructuredExperience());
         CustomizedResumeDocument customized = customizer.customize(master, jobText(job));
         truthfulnessValidator.validate(master, customized.structured(), masterEntity.getParsedText(), customized.text());
+        qualityGate.validateResume(master, customized.structured(), customized.text());
 
         int version = nextVersionNumber();
         String objectPath = objectPath("docx");

@@ -89,6 +89,9 @@ public class Application {
     @Column(name = "submitted_at")
     private OffsetDateTime submittedAt;
 
+    @Column(name = "submission_attempted_at")
+    private OffsetDateTime submissionAttemptedAt;
+
     @Column(name = "notification_sent_at")
     private OffsetDateTime notificationSentAt;
 
@@ -223,5 +226,6 @@ public class Application {
     public String getConfirmationId(){return confirmationId;} public void setConfirmationId(String v){confirmationId=v;}
     public String getConfirmationUrl(){return confirmationUrl;} public void setConfirmationUrl(String v){confirmationUrl=v;}
     public OffsetDateTime getSubmittedAt(){return submittedAt;} public void setSubmittedAt(OffsetDateTime v){submittedAt=v;}
+    public OffsetDateTime getSubmissionAttemptedAt(){return submissionAttemptedAt;} public void setSubmissionAttemptedAt(OffsetDateTime v){submissionAttemptedAt=v;}
     public OffsetDateTime getNotificationSentAt(){return notificationSentAt;} public void setNotificationSentAt(OffsetDateTime v){notificationSentAt=v;}
 }

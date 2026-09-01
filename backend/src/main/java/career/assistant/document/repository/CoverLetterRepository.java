@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface CoverLetterRepository extends JpaRepository<CoverLetter,UUID> {
-    Optional<CoverLetter> findFirstByJobId(UUID jobId);
+    Optional<CoverLetter> findFirstByJobIdOrderByCreatedAtDesc(UUID jobId);
     List<CoverLetter> findAllByOrderByCreatedAtDesc();
     List<CoverLetter> findByCreatedAtBefore(OffsetDateTime cutoff);
 }

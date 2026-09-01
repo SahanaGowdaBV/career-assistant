@@ -22,6 +22,7 @@ type ResumeDetails = ResumeSummary & {
   parsedText: string | null;
   parsed: {
     name: string | null;
+    contact: {email: string | null; phone: string | null; linkedin: string | null; location: string | null};
     professionalSummary: string | null;
     experience: Experience[];
     skills: string[];
@@ -191,7 +192,7 @@ export default function ResumeVersions({apiBase}: {apiBase: string}) {
       <p>{formatDate(selected.uploadedAt)} · {formatSize(selected.fileSize)}</p>
       {selected.customizationSummary && <div className="detailCallout">{selected.customizationSummary}</div>}
       <h3>Verified profile</h3>
-      <dl className="resumeFacts"><div><dt>Name</dt><dd>{selected.parsed.name || "Not identified"}</dd></div><div><dt>Checksum</dt><dd title={selected.checksum || ""}>{selected.checksum?.slice(0, 16) || "Unavailable"}…</dd></div></dl>
+      <dl className="resumeFacts"><div><dt>Name</dt><dd>{selected.parsed.name || "Not identified"}</dd></div><div><dt>Email</dt><dd>{selected.parsed.contact?.email || "Not identified"}</dd></div><div><dt>Phone</dt><dd>{selected.parsed.contact?.phone || "Not identified"}</dd></div><div><dt>LinkedIn</dt><dd>{selected.parsed.contact?.linkedin || "Not identified"}</dd></div><div><dt>Location</dt><dd>{selected.parsed.contact?.location || "Not identified"}</dd></div><div><dt>Checksum</dt><dd title={selected.checksum || ""}>{selected.checksum?.slice(0, 16) || "Unavailable"}…</dd></div></dl>
       {selected.parsed.professionalSummary && <><h3>Professional summary</h3><p>{selected.parsed.professionalSummary}</p></>}
       <h3>Parsed skills</h3><div className="chips good">{selected.parsed.skills.map(skill => <span key={skill}>{skill}</span>)}</div>
       <h3>Experience</h3>{selected.parsed.experience.length === 0 ? <p>No structured experience identified. The original extracted text remains preserved.</p> : selected.parsed.experience.map((entry, index) => <div className="experienceItem" key={`${entry.employer}-${entry.employmentDates}-${index}`}><b>{[entry.jobTitle, entry.employer].filter(Boolean).join(" · ")}</b><small>{entry.employmentDates}</small></div>)}

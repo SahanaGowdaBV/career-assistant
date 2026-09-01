@@ -47,6 +47,6 @@ public class ResumeJsonCodec {
     }
 
     private ParsedResume emptyResume() {
-        return new ParsedResume(null, null, List.of(), List.of(), List.of(), List.of(), List.of());
+        return new ParsedResume(null, null, null, List.of(), List.of(), List.of(), List.of(), List.of());
     }
 }

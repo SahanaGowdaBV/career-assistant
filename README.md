@@ -26,4 +26,4 @@ For Supabase deployment, first create a fresh staging project, set the backend d
 
 ## Current limitations
 
-Authenticated portals, CAPTCHA handling, browser fingerprint evasion, private APIs, and real auto-apply are excluded. Public ATS adapters are intentionally limited to the configured companies. Application dry-runs record selected resume and cover-letter IDs; resume content is stored as authored and no experience or skill is invented. Authentication, object storage, notifications and production observability remain production work.
+Authenticated portals, CAPTCHA bypass, browser fingerprint evasion, private ATS APIs, and real auto-apply transport are excluded. Public ATS adapters support exact public Greenhouse, Lever, Workable, and Ashby posting URLs. Ashby dry-runs discover the blank public form, prepare redacted field/upload metadata, and route challenges or uncertainty to review without retrying. Document generation uses only the active master resume's structured facts, preserves employment entries and chronology, and blocks unsupported output before package completion. Production defaults keep auto-apply disabled and dry-run enabled.

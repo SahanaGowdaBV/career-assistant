@@ -17,6 +17,8 @@ class ResumeParserTest {
         byte[] docx;
         try (XWPFDocument document = new XWPFDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             paragraph(document, "Jane Example");
+            paragraph(document, "jane@example.com | +971 50 123 4567 | linkedin.com/in/jane-example");
+            paragraph(document, "Location: Dubai, UAE");
             paragraph(document, "Professional Summary");
             paragraph(document, "DevOps engineer focused on reliable AWS platforms.");
             paragraph(document, "Professional Experience");
@@ -38,11 +40,43 @@ class ResumeParserTest {
 
         assertTrue(parsed.originalText().contains("Example Corp"));
         assertEquals("Jane Example", parsed.structured().name());
+        assertEquals("jane@example.com", parsed.structured().contact().email());
+        assertEquals("+971 50 123 4567", parsed.structured().contact().phone());
+        assertEquals("linkedin.com/in/jane-example", parsed.structured().contact().linkedin());
+        assertEquals("Dubai, UAE", parsed.structured().contact().location());
         assertEquals("Example Corp", parsed.structured().experience().getFirst().employer());
         assertEquals("Jan 2020 - Present", parsed.structured().experience().getFirst().employmentDates());
         assertTrue(parsed.structured().skills().containsAll(java.util.List.of("AWS", "Docker", "Kubernetes", "Terraform")));
         assertEquals(java.util.List.of("AWS Certified Example"), parsed.structured().certifications());
         assertEquals(java.util.List.of("Reduced verified deployment time by 20%."), parsed.structured().achievements());
+    }
+
+    @Test
+    void preservesMultiLineEmploymentEntriesAndRepairsWrappedBulletsWithoutMixingJobs() throws Exception {
+        byte[] docx;
+        try (XWPFDocument document = new XWPFDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            for (String line : new String[]{
+                    "Jane Example", "jane@example.com | +971 50 123 4567", "Professional Experience",
+                    "Senior Platform Engineer", "Current Example", "Jan 2022 - Present",
+                    "• Built reliable delivery", "platforms with AWS and Terraform.",
+                    "Platform Engineer", "Earlier Example", "Jan 2020 - Dec 2021",
+                    "• Maintained production Kubernetes and Docker systems.",
+                    "Skills", "Cloud: AWS, Terraform", "AWS; Docker; Kubernetes"
+            }) paragraph(document, line);
+            document.write(output);
+            docx = output.toByteArray();
+        }
+
+        ParsedResumeDocument parsed = new ResumeParser().parse(docx, ResumeFileValidator.DOCX);
+
+        assertEquals(2, parsed.structured().experience().size());
+        assertEquals("Current Example", parsed.structured().experience().get(0).employer());
+        assertEquals("Senior Platform Engineer", parsed.structured().experience().get(0).jobTitle());
+        assertEquals("Built reliable delivery platforms with AWS and Terraform.", parsed.structured().experience().get(0).highlights().getFirst());
+        assertEquals("Earlier Example", parsed.structured().experience().get(1).employer());
+        assertEquals("Platform Engineer", parsed.structured().experience().get(1).jobTitle());
+        assertEquals(parsed.structured().skills().size(), parsed.structured().skills().stream().map(String::toLowerCase).distinct().count());
+        assertTrue(parsed.structured().skills().stream().noneMatch(skill -> skill.contains(":")));
     }
 
     private void paragraph(XWPFDocument document, String text) {
