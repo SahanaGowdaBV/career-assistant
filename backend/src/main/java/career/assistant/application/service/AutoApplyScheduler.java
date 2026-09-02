@@ -1,0 +1,3 @@
+package career.assistant.application.service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty; import org.springframework.scheduling.annotation.*; import org.springframework.stereotype.Component;
+@Component @EnableScheduling @ConditionalOnProperty(name="career.application.scheduler-enabled",havingValue="true") public class AutoApplyScheduler {private final AutoApplyWorkerService worker; public AutoApplyScheduler(AutoApplyWorkerService w){worker=w;} @Scheduled(cron="${career.application.scheduler-cron:0 0 9 * * *}") public void run(){if(worker.schedulerAllowed())worker.run(true);}}
