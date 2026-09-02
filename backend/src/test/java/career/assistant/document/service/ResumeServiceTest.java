@@ -96,6 +96,15 @@ class ResumeServiceTest {
         verify(repository, never()).save(any());
     }
 
+    @Test
+    void normalizesLegacyNestedSkillsWhenReadingStoredMasterData() {
+        ResumeJsonCodec codec = new ResumeJsonCodec(new ObjectMapper());
+        var parsed = codec.readResume("{\"name\":\"Jane Example\",\"skills\":[\"AWS (EC2, AWS CodeBuild, GitHub, Docker, Ansible, Helm, Jenkins, CI/CD, Linux)\"]}");
+
+        assertTrue(parsed.skills().containsAll(java.util.List.of("AWS", "Docker", "Ansible", "Helm", "Jenkins", "CI/CD", "Linux")));
+        assertTrue(parsed.skills().stream().noneMatch(skill -> skill.contains("(") || skill.contains(")")));
+    }
+
     private ResumeService service(ResumeVersionRepository repository, ResumeStorage storage) {
         ResumeJsonCodec codec = new ResumeJsonCodec(new ObjectMapper());
         return new ResumeService(

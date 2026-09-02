@@ -5,7 +5,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 
 @Component
 public class ResumeJsonCodec {
@@ -31,10 +33,23 @@ public class ResumeJsonCodec {
     public ParsedResume readResume(String json) {
         if (json == null || json.isBlank()) return emptyResume();
         try {
-            return objectMapper.readValue(json, ParsedResume.class);
+            ParsedResume parsed = objectMapper.readValue(json, ParsedResume.class);
+            return new ParsedResume(parsed.name(), parsed.contact(), parsed.professionalSummary(), parsed.experience(),
+                    normalizeSkills(parsed.skills()), parsed.certifications(), parsed.education(), parsed.achievements());
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Stored resume data is invalid", exception);
         }
+    }
+
+    private List<String> normalizeSkills(List<String> values) {
+        LinkedHashMap<String, String> result = new LinkedHashMap<>();
+        for (String value : values == null ? List.<String>of() : values) {
+            for (String part : value.split("[,;|()]+")) {
+                String skill = part.trim();
+                if (!skill.isBlank() && !skill.contains(":")) result.putIfAbsent(skill.toLowerCase(Locale.ROOT), skill);
+            }
+        }
+        return List.copyOf(result.values());
     }
 
     public List<String> readSkills(String json) {
