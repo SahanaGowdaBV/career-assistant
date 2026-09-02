@@ -39,6 +39,7 @@ public final class SkillCatalog {
         add("Prometheus", "prometheus");
         add("Grafana", "grafana");
         add("Datadog", "datadog");
+        add("Amazon CloudWatch", "amazon cloudwatch", "cloudwatch");
         add("Splunk", "splunk");
         add("ELK", "elk", "elasticsearch", "logstash", "kibana");
         add("OpenTelemetry", "opentelemetry");

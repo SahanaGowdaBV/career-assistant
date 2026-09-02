@@ -136,7 +136,8 @@ public class CoverLetterService {
         StringBuilder body = new StringBuilder("Dear ").append(company).append(" Hiring Team,\n\n")
                 .append("I am writing to apply for the ").append(job.getTitle()).append(" role at ").append(company)
                 .append(". My background includes ").append(skillText).append(", which are the areas of my experience most relevant to this opening.\n\n");
-        if (resume.professionalSummary() != null && !resume.professionalSummary().isBlank()) { body.append(resume.professionalSummary()).append(" "); claims.add(resume.professionalSummary()); }
+        String summary = conciseSummary(resume.professionalSummary());
+        if (!summary.isBlank()) body.append(summary).append(" ");
         body.append("I would bring a practical, delivery-focused approach to the team, grounded in the work described below.\n\n");
         int quantified = 0;
         for (ExperienceEntry entry : selected) {
@@ -149,7 +150,7 @@ public class CoverLetterService {
                 boolean hasNumber = highlight.matches(".*\\d.*");
                 if (hasNumber && quantified >= 2) continue;
                 if (used++ >= 2) break;
-                body.append(highlight).append(' '); claims.add(highlight);
+                body.append(normalizeAfterI(highlight)).append(' ');
                 if (hasNumber) quantified++;
             }
             body.append("\n\n");
@@ -160,6 +161,17 @@ public class CoverLetterService {
             body.insert(body.lastIndexOf("\n\nThank you"), "The work described here reflects how I approach dependable delivery: understand the operational need, make the change repeatable, and keep the resulting platform clear to support.\n\n");
         }
         return new CoverLetterDraft(body.toString(), List.copyOf(claims));
+    }
+
+    private String conciseSummary(String value) {
+        if (value == null || value.isBlank()) return "";
+        String sentence = value.trim().split("(?<=[.!?])\\s+", 2)[0];
+        return sentence;
+    }
+
+    private String normalizeAfterI(String value) {
+        if (value == null || value.isBlank() || !value.matches("^[A-Z][a-z]+.*")) return value;
+        return Character.toLowerCase(value.charAt(0)) + value.substring(1);
     }
 
     private int relevance(ExperienceEntry entry, List<String> matched) {

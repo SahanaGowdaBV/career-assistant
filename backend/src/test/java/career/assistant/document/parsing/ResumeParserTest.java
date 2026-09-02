@@ -109,6 +109,21 @@ class ResumeParserTest {
         assertTrue(parsed.skills().stream().noneMatch(skill -> skill.contains("(") || skill.contains(")")));
     }
 
+    @Test
+    void deduplicatesSkillAliases() {
+        var parsed = new ResumeParser().structure("""
+                Jane Example
+                candidate@example.com | +971 50 123 4567
+                Skills
+                GitHub Actions, GitHub, Amazon CloudWatch, CloudWatch, AWS EC2
+                """);
+
+        assertEquals(1, parsed.skills().stream().filter("GitHub Actions"::equals).count());
+        assertEquals(0, parsed.skills().stream().filter("GitHub"::equals).count());
+        assertEquals(1, parsed.skills().stream().filter("Amazon CloudWatch"::equals).count());
+        assertEquals(0, parsed.skills().stream().filter("CloudWatch"::equals).count());
+    }
+
     private void paragraph(XWPFDocument document, String text) {
         document.createParagraph().createRun().setText(text);
     }

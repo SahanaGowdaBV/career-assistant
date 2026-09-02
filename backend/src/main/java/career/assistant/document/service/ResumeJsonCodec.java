@@ -49,6 +49,8 @@ public class ResumeJsonCodec {
                 if (!skill.isBlank() && !skill.contains(":")) result.putIfAbsent(skill.toLowerCase(Locale.ROOT), skill);
             }
         }
+        if (result.containsKey("github actions")) result.remove("github");
+        if (result.containsKey("amazon cloudwatch")) result.remove("cloudwatch");
         return List.copyOf(result.values());
     }
 

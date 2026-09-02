@@ -97,6 +97,8 @@ public class ResumeParser {
                 .map(this::cleanSkill)
                 .filter(value -> !value.isBlank() && value.length() <= 80 && !value.contains(":"))
                 .forEach(value -> skills.putIfAbsent(normalize(value), value));
+        if (skills.containsKey("github actions")) skills.remove("github");
+        if (skills.containsKey("amazon cloudwatch")) skills.remove("cloudwatch");
 
         return new ParsedResume(
                 name,
