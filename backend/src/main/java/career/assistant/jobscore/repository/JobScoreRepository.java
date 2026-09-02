@@ -10,6 +10,8 @@ import java.util.UUID;
 public interface JobScoreRepository extends JpaRepository<JobScore, UUID> {
 
     Optional<JobScore> findByJob(Job job);
+    Optional<JobScore> findByJobAndOwnerSubject(Job job, String ownerSubject);
+    Optional<JobScore> findByIdAndOwnerSubject(UUID id, String ownerSubject);
 
     boolean existsByJob(Job job);
 }

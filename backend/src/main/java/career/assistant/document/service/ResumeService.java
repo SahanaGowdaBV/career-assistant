@@ -93,7 +93,10 @@ public class ResumeService {
 
         storage.store(objectPath, file.content(), file.contentType());
         try {
-            if (activateAsMaster) repository.deactivateAllMasters();
+        if (activateAsMaster) {
+            if (resume.getOwnerSubject() == null) repository.deactivateAllMasters();
+            else repository.deactivateAllMastersByOwner(resume.getOwnerSubject());
+        }
             return details(repository.save(resume));
         } catch (RuntimeException exception) {
             safelyDelete(objectPath);
@@ -103,7 +106,8 @@ public class ResumeService {
 
     @Transactional(readOnly = true)
     public List<ResumeSummaryResponse> list() {
-        return repository.findAllByOrderByVersionNumberDesc().stream().map(this::summary).toList();
+        String owner=currentOwner();
+        return (owner==null ? repository.findAllByOrderByVersionNumberDesc() : repository.findAllByOwnerSubjectOrderByVersionNumberDesc(owner)).stream().map(this::summary).toList();
     }
 
     @Transactional(readOnly = true)
@@ -124,7 +128,8 @@ public class ResumeService {
     @Transactional
     public ResumeDetailsResponse activateMaster(UUID id) {
         ResumeVersion selected = findRequired(id);
-        repository.deactivateAllMasters();
+        if (selected.getOwnerSubject() == null) repository.deactivateAllMasters();
+        else repository.deactivateAllMastersByOwner(selected.getOwnerSubject());
         selected.setMasterResume(true);
         return details(repository.save(selected));
     }
@@ -151,11 +156,11 @@ public class ResumeService {
     }
 
     private ResumeDetailsResponse createCustomized(UUID jobId, boolean reuseExisting) {
-        Optional<ResumeVersion> existing = repository.findFirstByJobIdAndCustomizedTrue(jobId);
-        if (reuseExisting && existing.isPresent()) return details(existing.get());
-        ResumeVersion masterEntity = repository.findFirstByMasterResumeTrue()
-                .orElseThrow(() -> new ResumeConflictException("An active master resume is required before customization"));
         String authenticatedOwner = currentOwner();
+        Optional<ResumeVersion> existing = authenticatedOwner == null ? repository.findFirstByJobIdAndCustomizedTrue(jobId) : repository.findFirstByJobIdAndCustomizedTrueAndOwnerSubject(jobId, authenticatedOwner);
+        if (reuseExisting && existing.isPresent()) return details(existing.get());
+        ResumeVersion masterEntity = (authenticatedOwner == null ? repository.findFirstByMasterResumeTrue() : repository.findFirstByMasterResumeTrueAndOwnerSubject(authenticatedOwner))
+                .orElseThrow(() -> new ResumeConflictException("An active master resume is required before customization"));
         if (authenticatedOwner != null && masterEntity.getOwnerSubject() == null)
             throw new ResumeConflictException("LEGACY_RECORD_REQUIRES_RECREATION");
         if (authenticatedOwner != null && !authenticatedOwner.equals(masterEntity.getOwnerSubject()))
@@ -218,7 +223,8 @@ public class ResumeService {
 
     @Transactional(readOnly = true)
     public Optional<ResumeVersion> activeMasterEntity() {
-        return repository.findFirstByMasterResumeTrue();
+        String owner=currentOwner();
+        return owner==null ? repository.findFirstByMasterResumeTrue() : repository.findFirstByMasterResumeTrueAndOwnerSubject(owner);
     }
 
     public ParsedResume parsed(ResumeVersion resume) {
@@ -227,9 +233,7 @@ public class ResumeService {
 
     public ResumeVersion findEntity(UUID id) { return findRequired(id); }
 
-    private String currentOwner() {
-        try { return AuthenticatedOwner.required(); } catch (SecurityException ignored) { return null; }
-    }
+    private String currentOwner() { if(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()==null)return null;return AuthenticatedOwner.required(); }
 
     private void applyParsed(ResumeVersion resume, ParsedResumeDocument parsed) {
         resume.setParsedText(parsed.originalText());
@@ -252,12 +256,9 @@ public class ResumeService {
     }
 
     private ResumeVersion findRequired(UUID id) {
-        ResumeVersion resume = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Resume " + id + " was not found"));
-        try { AuthenticatedOwner.verify(resume.getOwnerSubject()); } catch (SecurityException e) {
-            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null)
-                throw new ResourceNotFoundException("Resume was not found");
-        }
-        return resume;
+        String owner=currentOwner();
+        return (owner==null ? repository.findById(id) : repository.findByIdAndOwnerSubject(id,owner))
+                .orElseThrow(() -> new ResourceNotFoundException("Resume was not found"));
     }
 
     private ResumeSummaryResponse summary(ResumeVersion resume) {

@@ -8,26 +8,21 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(
-    name = "job_scores",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uq_job_scores_job",
-            columnNames = {"job_id"}
-        )
-    }
-)
+@Table(name = "job_scores")
 public class JobScore {
 
     @Id
     @GeneratedValue
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @Column(name = "owner_subject", length = 255)
+    private String ownerSubject;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
         name = "job_id",
         nullable = false,
-        unique = true
+        unique = false
     )
     private Job job;
 
@@ -88,6 +83,8 @@ public class JobScore {
     public UUID getId() {
         return id;
     }
+    public String getOwnerSubject() { return ownerSubject; }
+    public void setOwnerSubject(String ownerSubject) { this.ownerSubject = ownerSubject; }
 
     public Job getJob() {
         return job;

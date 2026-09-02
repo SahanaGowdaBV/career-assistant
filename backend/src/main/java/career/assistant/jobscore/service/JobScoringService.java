@@ -10,6 +10,7 @@ import career.assistant.job.entity.Job;
 import career.assistant.job.repository.JobRepository;
 import career.assistant.jobscore.entity.JobScore;
 import career.assistant.jobscore.repository.JobScoreRepository;
+import career.assistant.security.AuthenticatedOwner;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,7 +95,8 @@ public class JobScoringService {
 
     public JobScore findOrScore(Job job) {
         if (activeMaster().isPresent()) return scoreJob(job);
-        return jobScoreRepository.findByJob(job).orElseGet(() -> scoreJob(job));
+        String owner=currentOwner();
+        return (owner==null?jobScoreRepository.findByJob(job):jobScoreRepository.findByJobAndOwnerSubject(job,owner)).orElseGet(() -> scoreJob(job));
     }
 
     private JobScore scoreAgainstMaster(Job job, ResumeVersion masterEntity) {
@@ -131,6 +133,7 @@ public class JobScoringService {
         total = calibratedTotal(total, confidence, matched, title, skills, experience, location, keywords);
 
         JobScore score = existingScore(job);
+        score.setOwnerSubject(masterEntity.getOwnerSubject());
         score.setJob(job);
         score.setScore(total.min(new BigDecimal("100.00")));
         score.setScoringConfidence(confidence.name());
@@ -178,6 +181,7 @@ public class JobScoringService {
                 experienceScore, locationScore, BigDecimal.ZERO);
 
         JobScore score = existingScore(job);
+        score.setOwnerSubject(currentOwner());
         score.setJob(job);
         score.setScore(totalScore);
         score.setScoringConfidence(confidence.name());
@@ -268,13 +272,16 @@ public class JobScoringService {
 
     private Optional<ResumeVersion> activeMaster() {
         if (resumeRepository == null || resumeJson == null) return Optional.empty();
-        return resumeRepository.findFirstByMasterResumeTrue()
+        String owner=currentOwner();
+        return (owner==null?resumeRepository.findFirstByMasterResumeTrue():resumeRepository.findFirstByMasterResumeTrueAndOwnerSubject(owner))
                 .filter(resume -> resume.getStructuredExperience() != null && resume.getParsedText() != null);
     }
 
     private JobScore existingScore(Job job) {
-        return jobScoreRepository.findByJob(job).orElseGet(JobScore::new);
+        String owner=currentOwner();
+        return (owner==null?jobScoreRepository.findByJob(job):jobScoreRepository.findByJobAndOwnerSubject(job,owner)).orElseGet(JobScore::new);
     }
+    private String currentOwner(){if(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()==null)return null;return AuthenticatedOwner.required();}
 
     private String buildSearchableText(Job job) {
         return (nullToEmpty(job.getTitle()) + "\n" + nullToEmpty(job.getDescription())).toLowerCase(Locale.ROOT);

@@ -7,15 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "applications",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uq_applications_job",
-                        columnNames = {"job_id"}
-                )
-        }
-)
+@Table(name = "applications")
 public class Application {
 
     @Id
@@ -24,11 +16,11 @@ public class Application {
     @Column(name = "owner_subject", length = 255)
     private String ownerSubject;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "job_id",
             nullable = false,
-            unique = true
+            unique = false
     )
     private Job job;
 

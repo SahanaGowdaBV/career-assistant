@@ -11,7 +11,7 @@ import java.util.UUID;
 public class SettingsController {
     private final SettingsRepository repo;
     public SettingsController(SettingsRepository r){repo=r;}
-    @GetMapping public UserSettings get(){return repo.findById(id()).orElseGet(this::defaults);}
+    @GetMapping public UserSettings get(){return repo.findByOwnerSubject(subject()).orElseGet(this::defaults);}
     @GetMapping("/completeness") public ProfileCompleteness completeness(){UserSettings s=get();return new ProfileCompleteness(complete(s), missing(s));}
     @PutMapping public UserSettings save(@RequestBody UserSettings s){s.setId(id());s.setOwnerSubject(subject());s.setDryRun(true);return repo.save(s);}
     private UUID id(){return UUID.nameUUIDFromBytes(("applicant-profile:"+subject()).getBytes(StandardCharsets.UTF_8));}

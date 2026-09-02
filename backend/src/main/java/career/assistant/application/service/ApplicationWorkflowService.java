@@ -94,15 +94,15 @@ public class ApplicationWorkflowService {
         JobScore score = scoring.findOrScore(job);
         if ("LOW".equals(confidence(score)) && !lowConfidenceConfirmed)
             throw new ResumeConflictException("LOW-confidence jobs require explicit manual confirmation before generation");
-        Application existing = apps.findByJobId(jobId).orElse(null);
         String owner = currentOwner();
-        if (existing != null && existing.getOwnerSubject() != null && !owner.equals(existing.getOwnerSubject())) throw new ResourceNotFoundException("Application was not found");
+        Application existing = owner==null ? apps.findByJobId(jobId).orElse(null) : apps.findByJobIdAndOwnerSubject(jobId,owner).orElse(null);
         if (existing != null && existing.getResumeVersionId() != null && existing.getCoverLetterId() != null)
             return regenerate(existing.getId());
         ResumeDetailsResponse resume = resumes.createCustomized(jobId);
         CoverLetter letter = letters.generate(job);
+        verifyDocumentOwners(owner,resume.id(),letter.getId());
         Application application = existing == null ? new Application() : existing;
-        if (application.getOwnerSubject() == null) application.setOwnerSubject(owner);
+        application.setOwnerSubject(owner);
         application.setJob(job);
         application.setStatus(ApplicationStatus.PENDING_REVIEW);
         application.setApplicationType(ApplicationType.MANUAL);
@@ -125,6 +125,7 @@ public class ApplicationWorkflowService {
         Job job = application.getJob();
         ResumeDetailsResponse resume = resumes.createCustomizedVersion(job.getId());
         CoverLetter letter = letters.generateNewVersion(job);
+        verifyDocumentOwners(application.getOwnerSubject(),resume.id(),letter.getId());
         application.setResumeVersionId(resume.id());
         application.setCoverLetterId(letter.getId());
         application.setStatus(ApplicationStatus.PENDING_REVIEW);
@@ -231,8 +232,9 @@ public class ApplicationWorkflowService {
     @Transactional(readOnly = true)
     public List<WorkflowResponse> list() {
         String owner=currentOwner();
-        return apps.findAll().stream().filter(a -> owner==null || owner.equals(a.getOwnerSubject())).map(application -> response(application, application.getJob(), scoring.findOrScore(application.getJob()))).toList();
+        return (owner==null?apps.findAll():apps.findAllByOwnerSubject(owner)).stream().map(application -> response(application, application.getJob(), scoring.findOrScore(application.getJob()))).toList();
     }
+    @Transactional(readOnly = true) public WorkflowResponse detail(UUID id){Application a=required(id);return response(a,a.getJob(),scoring.findOrScore(a.getJob()));}
 
     private AtsAdapter.PreparedApplication prepare(AtsAdapter.FormDefinition form, Application application) {
         ParsedResume master = resumes.activeMasterEntity().map(resumes::parsed).orElse(null);
@@ -323,8 +325,13 @@ public class ApplicationWorkflowService {
         return verified;
     }
 
-    private Application required(UUID id) { Application a=apps.findById(id).orElseThrow(() -> new ResourceNotFoundException("Application not found")); AuthenticatedOwner.verify(a.getOwnerSubject()); return a; }
-    private String currentOwner() { try { return AuthenticatedOwner.required(); } catch (SecurityException e) { return null; } }
+    private Application required(UUID id) { String owner=currentOwner();Optional<Application> found=owner==null?apps.findById(id):apps.findByIdAndOwnerSubject(id,owner);if(found.isPresent())return found.get();if(owner!=null&&apps.findById(id).filter(a->a.getOwnerSubject()==null).isPresent())throw new ResumeConflictException("LEGACY_RECORD_REQUIRES_RECREATION");throw new ResourceNotFoundException("Application not found"); }
+    private String currentOwner() { if(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()==null)return null;return AuthenticatedOwner.required(); }
+    private void verifyDocumentOwners(String owner,UUID resumeId,UUID letterId){
+        if(owner==null)return;
+        if(!owner.equals(resumes.findEntity(resumeId).getOwnerSubject())||!owner.equals(letters.findEntity(letterId).getOwnerSubject()))
+            throw new ResumeConflictException("Document ownership mismatch");
+    }
     private static boolean notBlank(String value) { return value != null && !value.isBlank(); }
     private static String confidence(JobScore score) {
         if (score.getScoringConfidence() != null) return score.getScoringConfidence();

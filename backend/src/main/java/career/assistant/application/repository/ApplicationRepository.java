@@ -15,10 +15,15 @@ public interface ApplicationRepository
     Optional<Application> findByJob(Job job);
 
     Optional<Application> findByJobId(UUID jobId);
+    Optional<Application> findByJobIdAndOwnerSubject(UUID jobId, String ownerSubject);
+    Optional<Application> findByIdAndOwnerSubject(UUID id, String ownerSubject);
+    List<Application> findAllByOwnerSubject(String ownerSubject);
 
     boolean existsByJobId(UUID jobId);
 
     List<Application> findByStatus(ApplicationStatus status);
+    List<Application> findByStatusAndOwnerSubject(ApplicationStatus status, String ownerSubject);
+    List<Application> findByStatusAndOwnerSubjectIsNotNull(ApplicationStatus status);
     long countByStatus(ApplicationStatus status);
 
     long countByStatusAndAppliedAtBetween(ApplicationStatus status, java.time.OffsetDateTime start, java.time.OffsetDateTime end);

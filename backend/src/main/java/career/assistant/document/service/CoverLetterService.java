@@ -69,7 +69,8 @@ public class CoverLetterService {
 
     @Transactional
     public CoverLetter generate(Job job) {
-        return letters.findFirstByJobIdOrderByCreatedAtDesc(job.getId()).orElseGet(() -> generateVersion(job));
+        String owner=currentOwner();
+        return (owner==null ? letters.findFirstByJobIdOrderByCreatedAtDesc(job.getId()) : letters.findFirstByJobIdAndOwnerSubjectOrderByCreatedAtDesc(job.getId(),owner)).orElseGet(() -> generateVersion(job));
     }
 
     @Transactional
@@ -78,11 +79,12 @@ public class CoverLetterService {
     }
 
     private CoverLetter generateVersion(Job job) {
-        ResumeVersion master = resumes.findFirstByMasterResumeTrue()
+        String owner=currentOwner();
+        ResumeVersion master = (owner==null?resumes.findFirstByMasterResumeTrue():resumes.findFirstByMasterResumeTrueAndOwnerSubject(owner))
                 .orElseThrow(() -> new ResumeConflictException("An active master resume is required"));
         try { AuthenticatedOwner.verify(master.getOwnerSubject()); } catch (SecurityException e) { throw new ResourceNotFoundException("Resume was not found"); }
         ParsedResume parsed = json.readResume(master.getStructuredExperience());
-        JobScore score = scores.findByJob(job)
+        JobScore score = (owner==null?scores.findByJob(job):scores.findByJobAndOwnerSubject(job,owner))
                 .orElseThrow(() -> new ResumeConflictException("The job must be scored before package generation"));
         String company = companies.findById(job.getCompanyId()).map(value -> value.getName())
                 .filter(value -> value != null && !value.isBlank())
@@ -95,7 +97,7 @@ public class CoverLetterService {
         byte[] bytes = docx(parsed, job.getTitle(), company, draft.content());
         String path = OffsetDateTime.now(ZoneOffset.UTC).getYear() + "/cover-letters/" + UUID.randomUUID() + ".docx";
         CoverLetter letter = new CoverLetter();
-        try { letter.setOwnerSubject(AuthenticatedOwner.required()); } catch (SecurityException ignored) { }
+        letter.setOwnerSubject(master.getOwnerSubject());
         letter.setJobId(job.getId());
         letter.setTitle(job.getTitle() + " cover letter");
         letter.setContent(draft.content());
@@ -229,10 +231,12 @@ public class CoverLetterService {
         XWPFRun run = paragraph.createRun(); run.setFontFamily(FONT); run.setFontSize(size); run.setBold(bold); run.setColor(color); run.setText(text == null ? "" : text);
     }
 
-    @Transactional(readOnly = true) public List<LetterResponse> list() { return letters.findAllByOrderByCreatedAtDesc().stream().map(LetterResponse::of).toList(); }
+    @Transactional(readOnly = true) public List<LetterResponse> list() { String owner=currentOwner(); return (owner==null?letters.findAllByOrderByCreatedAtDesc():letters.findAllByOwnerSubjectOrderByCreatedAtDesc(owner)).stream().map(LetterResponse::of).toList(); }
     @Transactional(readOnly = true) public LetterResponse get(UUID id) { return LetterResponse.of(required(id)); }
     @Transactional(readOnly = true) public ResumeDownload download(UUID id) { CoverLetter letter = required(id); StoredResumeObject object = storage.load(letter.getStoragePath()); return new ResumeDownload(object.content(), letter.getContentType(), letter.getFileName()); }
-    private CoverLetter required(UUID id) { CoverLetter c=letters.findById(id).orElseThrow(() -> new ResourceNotFoundException("Cover letter not found")); try { AuthenticatedOwner.verify(c.getOwnerSubject()); } catch (SecurityException e) { if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()!=null) throw new ResourceNotFoundException("Cover letter not found"); } return c; }
+    @Transactional(readOnly = true) public CoverLetter findEntity(UUID id) { return required(id); }
+    private CoverLetter required(UUID id) { String owner=currentOwner(); return (owner==null?letters.findById(id):letters.findByIdAndOwnerSubject(id,owner)).orElseThrow(() -> new ResourceNotFoundException("Cover letter not found")); }
+    private String currentOwner(){if(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()==null)return null;return AuthenticatedOwner.required();}
     private static List<String> csv(String value) { return value == null || value.isBlank() ? List.of() : Arrays.stream(value.split(",")).map(String::trim).filter(item -> !item.isBlank()).toList(); }
     private static String safe(String value) { return value.replaceAll("[^A-Za-z0-9._-]+", "-").replaceAll("^-|-$", ""); }
     private static String humanList(List<String> values) { return values.size() < 2 ? String.join("", values) : String.join(", ", values.subList(0, values.size() - 1)) + ", and " + values.getLast(); }
