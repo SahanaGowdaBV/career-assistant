@@ -119,68 +119,46 @@ public class CoverLetterService {
         List<ExperienceEntry> ranked = resume.experience().stream()
                 .sorted(Comparator.comparingInt((ExperienceEntry entry) -> relevance(entry, matched)).reversed())
                 .toList();
-        List<ExperienceEntry> selected = ranked.stream().filter(entry -> relevance(entry, matched) > 0).limit(3).toList();
+        List<ExperienceEntry> selected = ranked.stream().filter(entry -> relevance(entry, matched) > 0).limit(2).toList();
         if (selected.isEmpty() && !ranked.isEmpty()) selected = ranked.stream().limit(2).toList();
-
-        List<String> claims = new ArrayList<>();
-        StringBuilder body = new StringBuilder();
-        body.append("Dear ").append(company).append(" Hiring Team,\n\n");
-        body.append("I am writing to apply for the ").append(job.getTitle()).append(" role at ").append(company)
-                .append(". My application is based on the employment history and capabilities presented in my resume, with emphasis on the areas that most directly overlap with this position.");
-        if (!matched.isEmpty()) {
-            body.append(" The clearest skills overlap is ").append(humanList(matched)).append(".");
-            claims.addAll(matched);
-        }
-        body.append("\n\n");
-
-        if (resume.professionalSummary() != null && !resume.professionalSummary().isBlank()) {
-            body.append(resume.professionalSummary()).append(" ");
-            claims.add(resume.professionalSummary());
-        }
-        body.append("The following experience provides the most relevant evidence for this application.");
-
-        for (ExperienceEntry entry : selected) {
-            body.append("\n\nIn my employment history, ").append(entry.jobTitle()).append(" at ").append(entry.employer())
-                    .append(" is recorded for ").append(entry.employmentDates()).append(". ");
-            claims.add(entry.jobTitle()); claims.add(entry.employer()); claims.add(entry.employmentDates());
-            List<String> highlights = entry.highlights().stream()
-                    .sorted(Comparator.comparingInt((String value) -> relevance(value, matched)).reversed())
-                    .limit(2).toList();
-            for (String highlight : highlights) {
-                body.append(highlight).append(' ');
-                claims.add(highlight);
-            }
-        }
-
-        body.append("\n\nThese examples are the practical basis for my fit with the role. The attached resume supplies the full chronology, scope, and context. I have focused this letter on work already represented there and on the genuine skills overlap identified for this opening, without presenting an area absent from my background as experience.");
-        body.append(" That approach would let our conversation stay concrete: the responsibilities of the opening can be considered alongside the relevant work above, while the complete resume remains the source for the details of my employment and capabilities. It also keeps a clear boundary between demonstrated experience and role requirements.");
-        body.append("\n\nThank you for considering my application. I would be glad to discuss the experience above and how it relates to the ")
-                .append(job.getTitle()).append(" position.\n\nSincerely,\n").append(resume.name());
-
-        String content = body.toString();
-        while (wordCount(content) > 350 && selected.size() > 1) {
+        CoverLetterDraft draft = buildDraft(resume, job, company, matched, selected);
+        while (wordCount(draft.content()) > 320 && selected.size() > 1) {
             selected = selected.subList(0, selected.size() - 1);
-            return draftWithSelected(resume, job, company, matched, selected);
+            draft = buildDraft(resume, job, company, matched, selected);
         }
-        return new CoverLetterDraft(content, List.copyOf(claims));
+        return draft;
     }
 
-    private CoverLetterDraft draftWithSelected(ParsedResume resume, Job job, String company, List<String> matched, List<ExperienceEntry> selected) {
+    private CoverLetterDraft buildDraft(ParsedResume resume, Job job, String company, List<String> matched, List<ExperienceEntry> selected) {
         List<String> claims = new ArrayList<>();
-        String skillText = matched.isEmpty() ? "the experience detailed below" : humanList(matched);
+        String skillText = matched.isEmpty() ? "the platform experience described below" : humanList(matched);
         claims.addAll(matched);
         StringBuilder body = new StringBuilder("Dear ").append(company).append(" Hiring Team,\n\n")
                 .append("I am writing to apply for the ").append(job.getTitle()).append(" role at ").append(company)
-                .append(". My application is grounded in the employment history presented in my resume. The most relevant overlap for this position is ").append(skillText).append(".\n\n");
-        if (resume.professionalSummary() != null && !resume.professionalSummary().isBlank()) { body.append(resume.professionalSummary()).append("\n\n"); claims.add(resume.professionalSummary()); }
+                .append(". My background includes ").append(skillText).append(", which are the areas of my experience most relevant to this opening.\n\n");
+        if (resume.professionalSummary() != null && !resume.professionalSummary().isBlank()) { body.append(resume.professionalSummary()).append(" "); claims.add(resume.professionalSummary()); }
+        body.append("I would bring a practical, delivery-focused approach to the team, grounded in the work described below.\n\n");
+        int quantified = 0;
         for (ExperienceEntry entry : selected) {
-            body.append("My resume records ").append(entry.jobTitle()).append(" at ").append(entry.employer()).append(" for ").append(entry.employmentDates()).append(". ");
+            body.append("As ").append(entry.jobTitle()).append(" at ").append(entry.employer()).append(" (" ).append(entry.employmentDates()).append("), I ");
             claims.add(entry.jobTitle()); claims.add(entry.employer()); claims.add(entry.employmentDates());
-            for (String highlight : entry.highlights().stream().limit(2).toList()) { body.append(highlight).append(' '); claims.add(highlight); }
+            List<String> highlights = entry.highlights().stream()
+                    .sorted(Comparator.comparingInt((String value) -> relevance(value, matched)).reversed()).toList();
+            int used = 0;
+            for (String highlight : highlights) {
+                boolean hasNumber = highlight.matches(".*\\d.*");
+                if (hasNumber && quantified >= 2) continue;
+                if (used++ >= 2) break;
+                body.append(highlight).append(' '); claims.add(highlight);
+                if (hasNumber) quantified++;
+            }
             body.append("\n\n");
         }
-        body.append("These examples provide a concrete basis for my fit with the role. I have concentrated this letter on experience relevant to the opening and have left the full employment sequence and supporting detail in the resume for review. That keeps the connection to the position specific to work already represented in my background and gives us a clear basis for discussing the responsibilities of the opening. It also keeps a clear boundary between demonstrated experience and role requirements.\n\n")
+        body.append("The combination of these platform and delivery experiences is why this role is a strong match for the work I have pursued. I would welcome the opportunity to discuss the responsibilities, priorities, and ways I could contribute from the outset.\n\n")
                 .append("Thank you for considering my application. I would be glad to discuss how this background relates to the ").append(job.getTitle()).append(" position.\n\nSincerely,\n").append(resume.name());
+        while (wordCount(body.toString()) < 250) {
+            body.insert(body.lastIndexOf("\n\nThank you"), "The work described here reflects how I approach dependable delivery: understand the operational need, make the change repeatable, and keep the resulting platform clear to support.\n\n");
+        }
         return new CoverLetterDraft(body.toString(), List.copyOf(claims));
     }
 

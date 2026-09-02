@@ -96,6 +96,19 @@ class ResumeParserTest {
         assertEquals("Dubai, UAE", parsed.contact().location());
     }
 
+    @Test
+    void flattensParenthesizedSkillsIntoIndependentAtsValues() {
+        var parsed = new ResumeParser().structure("""
+                Jane Example
+                candidate@example.com | +971 50 123 4567
+                Skills
+                AWS (EC2, AWS CodeBuild, GitHub, Docker, Ansible, Helm, Jenkins, Linux)
+                """);
+
+        assertTrue(parsed.skills().containsAll(java.util.List.of("AWS", "Docker", "Ansible", "Helm", "Jenkins", "Linux")));
+        assertTrue(parsed.skills().stream().noneMatch(skill -> skill.contains("(") || skill.contains(")")));
+    }
+
     private void paragraph(XWPFDocument document, String text) {
         document.createParagraph().createRun().setText(text);
     }

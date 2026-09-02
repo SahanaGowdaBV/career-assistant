@@ -76,11 +76,9 @@ public class ResumeCustomizer {
             }
             if (!resume.experience().isEmpty()) {
                 heading(document, "Professional Experience");
-                int splitBefore = balancedSplitIndex(resume);
                 for (int i = 0; i < resume.experience().size(); i++) {
                     ExperienceEntry entry = resume.experience().get(i);
                     XWPFParagraph header = paragraph(document, 1, 1.0);
-                    if (i == splitBefore) header.setPageBreak(true);
                     header.setKeepNext(true);
                     keepLines(header);
                     XWPFRun title = run(header, entry.jobTitle(), 10.2, true, ACCENT);

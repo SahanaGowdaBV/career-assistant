@@ -93,7 +93,7 @@ public class ResumeParser {
         LinkedHashMap<String, String> skills = new LinkedHashMap<>();
         SkillCatalog.findMentionedSkills(text).forEach(value -> skills.putIfAbsent(normalize(value), value));
         sections.get(Section.SKILLS).stream()
-                .flatMap(line -> Arrays.stream(line.split("[,;|•]")))
+                .flatMap(line -> Arrays.stream(line.split("[,;|•()]+")))
                 .map(this::cleanSkill)
                 .filter(value -> !value.isBlank() && value.length() <= 80 && !value.contains(":"))
                 .forEach(value -> skills.putIfAbsent(normalize(value), value));
