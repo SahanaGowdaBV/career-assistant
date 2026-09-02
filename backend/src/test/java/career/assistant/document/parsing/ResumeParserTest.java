@@ -79,6 +79,23 @@ class ResumeParserTest {
         assertTrue(parsed.structured().skills().stream().noneMatch(skill -> skill.contains(":")));
     }
 
+    @Test
+    void deterministicallyExtractsIconPrefixedPipeSeparatedContactRow() {
+        var parsed = new ResumeParser().structure("""
+                Jane Example
+                ✉ candidate@example.com | ☎ +971 50 123 4567 | in linkedin.com/in/jane-example | ◉ github.com/jane-example | 📍 Dubai, UAE
+                Professional Experience
+                Platform Engineer | Example Corp | Jan 2022 - Present
+                Built reliable platforms.
+                """);
+
+        assertEquals("candidate@example.com", parsed.contact().email());
+        assertEquals("+971 50 123 4567", parsed.contact().phone());
+        assertEquals("linkedin.com/in/jane-example", parsed.contact().linkedin());
+        assertEquals("github.com/jane-example", parsed.contact().github());
+        assertEquals("Dubai, UAE", parsed.contact().location());
+    }
+
     private void paragraph(XWPFDocument document, String text) {
         document.createParagraph().createRun().setText(text);
     }

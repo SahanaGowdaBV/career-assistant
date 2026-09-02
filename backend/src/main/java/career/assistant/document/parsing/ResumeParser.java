@@ -32,8 +32,9 @@ public class ResumeParser {
             "(?i)(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+)?(?:19|20)\\d{2}\\s*(?:-|–|—|to)\\s*(?:(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+)?(?:19|20)\\d{2}|present|current|now)"
     );
     private static final Pattern EMAIL = Pattern.compile("(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b");
-    private static final Pattern PHONE = Pattern.compile("(?<!\\d)(?:\\+?\\d[\\d ()-]{7,}\\d)(?!\\d)");
-    private static final Pattern LINKEDIN = Pattern.compile("(?i)(?:https?://)?(?:www\\.)?linkedin\\.com/in/[A-Z0-9_%./-]+");
+    private static final Pattern PHONE = Pattern.compile("(?<![\\d\\w])(?:\\+?\\d[\\d ()-]{7,}\\d)(?![\\d\\w])");
+    private static final Pattern LINKEDIN = Pattern.compile("(?i)(?:https?://)?(?:www\\.)?linkedin\\.com/(?:in|pub)/[A-Z0-9_%./-]+");
+    private static final Pattern GITHUB = Pattern.compile("(?i)(?:https?://)?(?:www\\.)?github\\.com/[A-Z0-9._-]+(?:/[A-Z0-9._-]+)?");
     private static final Pattern LOCATION = Pattern.compile("(?i)\\blocation\\s*[:|-]\\s*([^|•]+)");
     private static final Set<String> SUMMARY_HEADINGS = Set.of("summary", "professional summary", "profile", "professional profile");
     private static final Set<String> EXPERIENCE_HEADINGS = Set.of("experience", "professional experience", "work experience", "employment history");
@@ -78,9 +79,7 @@ public class ResumeParser {
         List<String> lines = Arrays.stream(text.split("\\R"))
                 .map(String::trim).filter(line -> !line.isBlank()).toList();
         String name = firstIdentityLine(lines);
-        ResumeContact contact = new ResumeContact(
-                firstMatch(lines, EMAIL), firstMatch(lines, PHONE), firstMatch(lines, LINKEDIN), firstMatch(lines, LOCATION)
-        );
+        ResumeContact contact = extractContact(lines);
 
         Map<Section, List<String>> sections = new LinkedHashMap<>();
         for (Section value : Section.values()) sections.put(value, new ArrayList<>());
@@ -109,6 +108,35 @@ public class ResumeParser {
                 distinct(sections.get(Section.EDUCATION)),
                 distinct(sections.get(Section.ACHIEVEMENTS))
         );
+    }
+
+    private ResumeContact extractContact(List<String> lines) {
+        String email = firstMatch(lines, EMAIL);
+        String phone = firstMatch(lines, PHONE);
+        String linkedin = firstMatch(lines, LINKEDIN);
+        String github = firstMatch(lines, GITHUB);
+        String location = firstMatch(lines, LOCATION);
+
+        // Contact rows are commonly rendered as icon-prefixed, pipe-separated text.
+        // Inspect only segments on a row that already contains a deterministic contact
+        // marker; never derive contact data from the authenticated account.
+        if (location == null) {
+            for (String line : lines) {
+                if (!line.contains("|") || (!EMAIL.matcher(line).find() && !PHONE.matcher(line).find()
+                        && !LINKEDIN.matcher(line).find() && !GITHUB.matcher(line).find())) continue;
+                for (String segment : line.split("\\|")) {
+                    String candidate = cleanContact(segment);
+                    if (candidate.contains(",") && candidate.length() <= 100 && !EMAIL.matcher(candidate).find()
+                            && !PHONE.matcher(candidate).find() && !LINKEDIN.matcher(candidate).find()
+                            && !GITHUB.matcher(candidate).find()) {
+                        location = candidate;
+                        break;
+                    }
+                }
+                if (location != null) break;
+            }
+        }
+        return new ResumeContact(email, phone, linkedin, github, location);
     }
 
     private String firstIdentityLine(List<String> lines) {
@@ -213,7 +241,11 @@ public class ResumeParser {
     private String cleanBullet(String line) { return line.replaceFirst("^[•▪◦*+-]\\s*", "").trim(); }
     private String cleanHeader(String line) { return cleanBullet(line).replaceAll("^[|,–—-]+|[|,–—-]+$", "").trim(); }
     private String cleanSkill(String value) { return cleanBullet(value).replaceFirst("^[^:]{1,30}:\\s*", "").trim(); }
-    private String cleanContact(String value) { return value == null ? null : value.replaceAll("[|•,;]+$", "").trim(); }
+    private String cleanContact(String value) {
+        if (value == null) return null;
+        return value.replaceFirst("^[^\\p{L}\\p{N}+@]+", "")
+                .replaceAll("[|•,;]+$", "").trim();
+    }
     private String normalize(String value) { return value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim(); }
     private String joinSentences(List<String> values) { return values.isEmpty() ? null : String.join(" ", values).replaceAll("\\s+", " ").trim(); }
     private List<String> distinct(List<String> values) {

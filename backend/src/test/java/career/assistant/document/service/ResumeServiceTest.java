@@ -57,6 +57,7 @@ class ResumeServiceTest {
         assertTrue(response.master());
         assertEquals(64, response.checksum().length());
         assertTrue(response.parsed().skills().contains("AWS"));
+        assertTrue(saved.getValue().getStructuredExperience().contains("jane@example.com"));
         assertNotNull(saved.getValue().getStoragePath());
         assertTrue(saved.getValue().getStoragePath().matches("\\d{4}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.pdf"));
         verify(repository).deactivateAllMasters();
@@ -119,7 +120,7 @@ class ResumeServiceTest {
                 content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 11);
                 content.setLeading(14);
                 content.newLineAtOffset(60, 740);
-                for (String line : new String[]{"Jane Example", "jane@example.com | +971 50 123 4567", "Professional Summary", "DevOps engineer with AWS delivery experience.", "Skills", "AWS, Docker", "Experience", "DevOps Engineer | Example Corp | Jan 2020 - Present", "Built reliable AWS systems."}) {
+                for (String line : new String[]{"Jane Example", "jane@example.com | +971 50 123 4567 | linkedin.com/in/jane-example | github.com/jane-example | Dubai, UAE", "Professional Summary", "DevOps engineer with AWS delivery experience.", "Skills", "AWS, Docker", "Experience", "DevOps Engineer | Example Corp | Jan 2020 - Present", "Built reliable AWS systems."}) {
                     content.showText(line);
                     content.newLine();
                 }
