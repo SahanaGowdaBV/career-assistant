@@ -1,0 +1,2 @@
+package career.assistant.application.ats;
+public record AshbySubmissionResult(Outcome outcome,String confirmationReference,String confirmationUrl,String safeReason){public enum Outcome{CONFIRMED,VALIDATION_FAILED,REVIEW_REQUIRED,CAPTCHA_OR_CHALLENGE,SCHEMA_CHANGED,UNCERTAIN,FAILED_BEFORE_SUBMISSION} public static AshbySubmissionResult review(String r){return new AshbySubmissionResult(Outcome.REVIEW_REQUIRED,null,null,r);} }
