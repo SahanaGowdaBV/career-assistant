@@ -18,3 +18,7 @@ export function applicationActions(status: WorkflowStatus): string[] {
 export function csvSkills(value: string | null | undefined): string[] {
   return value ? value.split(",").map(skill => skill.trim()).filter(Boolean) : [];
 }
+
+export function visibleWorkflowError(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}

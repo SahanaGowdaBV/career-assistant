@@ -62,6 +62,7 @@ class ApplicationWorkflowServiceTest {
 
     @Test void existingPackageRegeneratesVersionsOnExplicitGenerateAndReusesApplication() {
         UUID jobId = UUID.randomUUID(); Job job = job(jobId); Application application = packaged(job, ApplicationStatus.PENDING_REVIEW);
+        UUID applicationId = UUID.randomUUID(); setId(application, applicationId);
         UUID oldResume = application.getResumeVersionId(); UUID oldLetter = application.getCoverLetterId();
         UUID newResume = UUID.randomUUID(), newLetter = UUID.randomUUID();
         ResumeDetailsResponse resume = new ResumeDetailsResponse(newResume, "new.docx", null, 3, "CUSTOMIZED", false, true, CoverLetterService.DOCX, 100, "sum", "", null, null, jobId, "");
@@ -72,7 +73,7 @@ class ApplicationWorkflowServiceTest {
 
         var result = service.generate(jobId, false);
 
-        assertEquals(application.getId(), result.id()); assertEquals(newResume, result.resumeVersionId()); assertEquals(newLetter, result.coverLetterId());
+        assertEquals(applicationId, result.id()); assertEquals(newResume, result.resumeVersionId()); assertEquals(newLetter, result.coverLetterId());
         assertEquals(ApplicationStatus.PENDING_REVIEW, result.status()); assertTrue(!oldResume.equals(result.resumeVersionId())); assertTrue(!oldLetter.equals(result.coverLetterId()));
         verify(resumes).createCustomizedVersion(jobId); verify(letters).generateNewVersion(job);
     }
@@ -154,6 +155,22 @@ class ApplicationWorkflowServiceTest {
         assertEquals(ApplicationStatus.PENDING_REVIEW, result.status()); verify(apps).save(application);
     }
 
+    @Test void failedRegenerationPreservesCurrentReferencesAndReturnsSafeError() {
+        Job job = job(UUID.randomUUID()); Application application = packaged(job, ApplicationStatus.PENDING_REVIEW);
+        UUID oldResume = application.getResumeVersionId(); UUID oldLetter = application.getCoverLetterId();
+        when(apps.findById(any())).thenReturn(Optional.of(application));
+        UUID jobId = job.getId();
+        ResumeDetailsResponse newResume = new ResumeDetailsResponse(UUID.randomUUID(), "new.docx", null, 3, "CUSTOMIZED", false, true, CoverLetterService.DOCX, 100, "sum", "", null, null, jobId, "");
+        when(resumes.createCustomizedVersion(jobId)).thenReturn(newResume);
+        when(letters.generateNewVersion(job)).thenThrow(new ResumeConflictException("Document quality gate blocked package completion"));
+
+        ResumeConflictException failure = assertThrows(ResumeConflictException.class, () -> service.regenerate(UUID.randomUUID()));
+
+        assertEquals("Document quality gate blocked package completion", failure.getMessage());
+        assertEquals(oldResume, application.getResumeVersionId()); assertEquals(oldLetter, application.getCoverLetterId());
+        assertEquals(ApplicationStatus.PENDING_REVIEW, application.getStatus()); verify(apps, never()).save(any(Application.class));
+    }
+
     @Test void approveRejectAndManualAppliedRemainExplicitTransitions() {
         Job job = job(UUID.randomUUID()); Application application = packaged(job, ApplicationStatus.PENDING_REVIEW);
         when(apps.findById(any())).thenReturn(Optional.of(application)); when(scoring.findOrScore(job)).thenReturn(score("HIGH", 95)); when(apps.save(application)).thenReturn(application);
@@ -188,6 +205,10 @@ class ApplicationWorkflowServiceTest {
     }
     private static void setId(CoverLetter letter, UUID id) {
         try { var field = CoverLetter.class.getDeclaredField("id"); field.setAccessible(true); field.set(letter, id); }
+        catch (ReflectiveOperationException exception) { throw new AssertionError(exception); }
+    }
+    private static void setId(Application application, UUID id) {
+        try { var field = Application.class.getDeclaredField("id"); field.setAccessible(true); field.set(application, id); }
         catch (ReflectiveOperationException exception) { throw new AssertionError(exception); }
     }
 }
