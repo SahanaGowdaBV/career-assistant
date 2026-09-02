@@ -95,7 +95,7 @@ public class ApplicationWorkflowService {
             throw new ResumeConflictException("LOW-confidence jobs require explicit manual confirmation before generation");
         Application existing = apps.findByJobId(jobId).orElse(null);
         if (existing != null && existing.getResumeVersionId() != null && existing.getCoverLetterId() != null)
-            return response(existing, job, score);
+            return regenerate(existing.getId());
         ResumeDetailsResponse resume = resumes.createCustomized(jobId);
         CoverLetter letter = letters.generate(job);
         Application application = existing == null ? new Application() : existing;

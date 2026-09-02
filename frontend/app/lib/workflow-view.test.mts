@@ -5,6 +5,7 @@ import {applicationActions, csvSkills, workflowStatuses} from "./workflow-view.t
 test("pending review retains rejected packages for an explicit return action", () => {
   assert.deepEqual(workflowStatuses["Pending Review"], ["PENDING_REVIEW", "REJECTED"]);
   assert.deepEqual(applicationActions("REJECTED"), ["Redacted dry-run preview", "Return to review"]);
+  assert.ok(applicationActions("PENDING_REVIEW").includes("Regenerate application package"));
 });
 
 test("ready packages expose manual-only actions", () => {

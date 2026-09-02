@@ -60,12 +60,21 @@ class ApplicationWorkflowServiceTest {
         verifyNoInteractions(resumes, letters);
     }
 
-    @Test void duplicatePackageIsReturnedWithoutRegeneration() {
+    @Test void existingPackageRegeneratesVersionsOnExplicitGenerateAndReusesApplication() {
         UUID jobId = UUID.randomUUID(); Job job = job(jobId); Application application = packaged(job, ApplicationStatus.PENDING_REVIEW);
+        UUID oldResume = application.getResumeVersionId(); UUID oldLetter = application.getCoverLetterId();
+        UUID newResume = UUID.randomUUID(), newLetter = UUID.randomUUID();
+        ResumeDetailsResponse resume = new ResumeDetailsResponse(newResume, "new.docx", null, 3, "CUSTOMIZED", false, true, CoverLetterService.DOCX, 100, "sum", "", null, null, jobId, "");
+        CoverLetter letter = new CoverLetter(); setId(letter, newLetter);
         when(jobs.findRequired(jobId)).thenReturn(job); when(scoring.findOrScore(job)).thenReturn(score("HIGH", 95));
-        when(apps.findByJobId(jobId)).thenReturn(Optional.of(application));
-        service.generate(jobId, false);
-        verifyNoInteractions(resumes, letters);
+        when(apps.findByJobId(jobId)).thenReturn(Optional.of(application)); when(apps.findById(application.getId())).thenReturn(Optional.of(application));
+        when(resumes.createCustomizedVersion(jobId)).thenReturn(resume); when(letters.generateNewVersion(job)).thenReturn(letter); when(apps.save(application)).thenReturn(application);
+
+        var result = service.generate(jobId, false);
+
+        assertEquals(application.getId(), result.id()); assertEquals(newResume, result.resumeVersionId()); assertEquals(newLetter, result.coverLetterId());
+        assertEquals(ApplicationStatus.PENDING_REVIEW, result.status()); assertTrue(!oldResume.equals(result.resumeVersionId())); assertTrue(!oldLetter.equals(result.coverLetterId()));
+        verify(resumes).createCustomizedVersion(jobId); verify(letters).generateNewVersion(job);
     }
 
     @Test void scoreBelowConfiguredMinimumRoutesReadyApplicationToReview() {
