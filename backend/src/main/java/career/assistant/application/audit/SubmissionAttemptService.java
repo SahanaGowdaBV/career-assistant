@@ -1,10 +1,12 @@
 package career.assistant.application.audit;
+import career.assistant.application.repository.ApplicationRepository;
 import org.springframework.dao.DataIntegrityViolationException; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets; import java.security.MessageDigest; import java.time.*; import java.util.*;
 @Service public class SubmissionAttemptService {
- private final SubmissionAttemptRepository repo; public SubmissionAttemptService(SubmissionAttemptRepository r){repo=r;}
+ private final SubmissionAttemptRepository repo; private final ApplicationRepository applications; public SubmissionAttemptService(SubmissionAttemptRepository r){this(r,null);} @org.springframework.beans.factory.annotation.Autowired public SubmissionAttemptService(SubmissionAttemptRepository r, ApplicationRepository applications){repo=r;this.applications=applications;}
  @Transactional public SubmissionAttemptDto recordDryRun(UUID applicationId,String owner,String ats,String source,String key,String request){SubmissionAttempt a=new SubmissionAttempt();a.setApplicationId(applicationId);a.setOwnerSubject(owner);a.setAtsProvider(ats);a.setSourceFingerprint(hash(source));a.setIdempotencyKey(key);a.setRequestFingerprint(hash(request));a.setState(SubmissionAttemptState.DRY_RUN);return SubmissionAttemptDto.of(repo.save(a));}
  @Transactional public SubmissionAttemptDto claim(UUID applicationId,String owner,String ats,String source,String key,String request){
+  if(applications!=null) applications.findById(applicationId).filter(a -> owner != null && owner.equals(a.getOwnerSubject())).orElseThrow(() -> new SubmissionAttemptConflictException("Application ownership mismatch"));
   List<SubmissionAttemptState> blocking=List.of(SubmissionAttemptState.IN_PROGRESS,SubmissionAttemptState.CONFIRMED,SubmissionAttemptState.UNCERTAIN);
   if(repo.findFirstByApplicationIdOrderByCreatedAtDesc(applicationId).filter(a->blocking.contains(a.getState())).isPresent()) throw new SubmissionAttemptConflictException("Application already has a blocking submission attempt");
   if(repo.findFirstBySourceFingerprintAndStateIn(hash(source),blocking).isPresent()) throw new SubmissionAttemptConflictException("Source posting already has a blocking submission attempt");

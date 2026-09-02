@@ -19,6 +19,7 @@ import career.assistant.document.validation.ResumeFileValidator;
 import career.assistant.document.validation.ValidatedResumeFile;
 import career.assistant.job.entity.Job;
 import career.assistant.job.repository.JobRepository;
+import career.assistant.security.AuthenticatedOwner;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -76,6 +77,7 @@ public class ResumeService {
         String objectPath = objectPath(file.extension());
 
         ResumeVersion resume = new ResumeVersion();
+        resume.setOwnerSubject(currentOwner());
         resume.setVersionName("Resume v" + version);
         resume.setVersionNumber(version);
         resume.setFileName(file.sanitizedFilename());
@@ -153,6 +155,11 @@ public class ResumeService {
         if (reuseExisting && existing.isPresent()) return details(existing.get());
         ResumeVersion masterEntity = repository.findFirstByMasterResumeTrue()
                 .orElseThrow(() -> new ResumeConflictException("An active master resume is required before customization"));
+        String authenticatedOwner = currentOwner();
+        if (authenticatedOwner != null && masterEntity.getOwnerSubject() == null)
+            throw new ResumeConflictException("LEGACY_RECORD_REQUIRES_RECREATION");
+        if (authenticatedOwner != null && !authenticatedOwner.equals(masterEntity.getOwnerSubject()))
+            throw new ResourceNotFoundException("Resume was not found");
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job " + jobId + " was not found"));
         ParsedResume master = json.readResume(masterEntity.getStructuredExperience());
@@ -165,6 +172,7 @@ public class ResumeService {
         String filename = validator.sanitizeFilename(job.getTitle() + " resume v" + version, "docx");
 
         ResumeVersion resume = new ResumeVersion();
+        resume.setOwnerSubject(masterEntity.getOwnerSubject() != null ? masterEntity.getOwnerSubject() : authenticatedOwner);
         resume.setJobId(jobId);
         resume.setSourceResumeId(masterEntity.getId());
         resume.setVersionName("Customized resume v" + version);
@@ -219,6 +227,10 @@ public class ResumeService {
 
     public ResumeVersion findEntity(UUID id) { return findRequired(id); }
 
+    private String currentOwner() {
+        try { return AuthenticatedOwner.required(); } catch (SecurityException ignored) { return null; }
+    }
+
     private void applyParsed(ResumeVersion resume, ParsedResumeDocument parsed) {
         resume.setParsedText(parsed.originalText());
         resume.setStructuredSkills(json.write(parsed.structured().skills()));
@@ -240,8 +252,12 @@ public class ResumeService {
     }
 
     private ResumeVersion findRequired(UUID id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume " + id + " was not found"));
+        ResumeVersion resume = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Resume " + id + " was not found"));
+        try { AuthenticatedOwner.verify(resume.getOwnerSubject()); } catch (SecurityException e) {
+            if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication() != null)
+                throw new ResourceNotFoundException("Resume was not found");
+        }
+        return resume;
     }
 
     private ResumeSummaryResponse summary(ResumeVersion resume) {

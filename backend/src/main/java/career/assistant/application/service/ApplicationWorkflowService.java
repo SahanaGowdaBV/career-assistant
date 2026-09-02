@@ -21,6 +21,7 @@ import career.assistant.job.entity.Job;
 import career.assistant.job.service.JobService;
 import career.assistant.jobscore.entity.JobScore;
 import career.assistant.jobscore.service.JobScoringService;
+import career.assistant.security.AuthenticatedOwner;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,11 +95,14 @@ public class ApplicationWorkflowService {
         if ("LOW".equals(confidence(score)) && !lowConfidenceConfirmed)
             throw new ResumeConflictException("LOW-confidence jobs require explicit manual confirmation before generation");
         Application existing = apps.findByJobId(jobId).orElse(null);
+        String owner = currentOwner();
+        if (existing != null && existing.getOwnerSubject() != null && !owner.equals(existing.getOwnerSubject())) throw new ResourceNotFoundException("Application was not found");
         if (existing != null && existing.getResumeVersionId() != null && existing.getCoverLetterId() != null)
             return regenerate(existing.getId());
         ResumeDetailsResponse resume = resumes.createCustomized(jobId);
         CoverLetter letter = letters.generate(job);
         Application application = existing == null ? new Application() : existing;
+        if (application.getOwnerSubject() == null) application.setOwnerSubject(owner);
         application.setJob(job);
         application.setStatus(ApplicationStatus.PENDING_REVIEW);
         application.setApplicationType(ApplicationType.MANUAL);
@@ -115,6 +119,7 @@ public class ApplicationWorkflowService {
     @Transactional
     public WorkflowResponse regenerate(UUID applicationId) {
         Application application = required(applicationId);
+        AuthenticatedOwner.verify(application.getOwnerSubject());
         if (application.getStatus() == ApplicationStatus.AUTO_APPLIED || application.getStatus() == ApplicationStatus.MANUALLY_APPLIED)
             throw new ResumeConflictException("Submitted applications cannot be regenerated");
         Job job = application.getJob();
@@ -225,7 +230,8 @@ public class ApplicationWorkflowService {
 
     @Transactional(readOnly = true)
     public List<WorkflowResponse> list() {
-        return apps.findAll().stream().map(application -> response(application, application.getJob(), scoring.findOrScore(application.getJob()))).toList();
+        String owner=currentOwner();
+        return apps.findAll().stream().filter(a -> owner==null || owner.equals(a.getOwnerSubject())).map(application -> response(application, application.getJob(), scoring.findOrScore(application.getJob()))).toList();
     }
 
     private AtsAdapter.PreparedApplication prepare(AtsAdapter.FormDefinition form, Application application) {
@@ -317,7 +323,8 @@ public class ApplicationWorkflowService {
         return verified;
     }
 
-    private Application required(UUID id) { return apps.findById(id).orElseThrow(() -> new ResourceNotFoundException("Application not found")); }
+    private Application required(UUID id) { Application a=apps.findById(id).orElseThrow(() -> new ResourceNotFoundException("Application not found")); AuthenticatedOwner.verify(a.getOwnerSubject()); return a; }
+    private String currentOwner() { try { return AuthenticatedOwner.required(); } catch (SecurityException e) { return null; } }
     private static boolean notBlank(String value) { return value != null && !value.isBlank(); }
     private static String confidence(JobScore score) {
         if (score.getScoringConfidence() != null) return score.getScoringConfidence();

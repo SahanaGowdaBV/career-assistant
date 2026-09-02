@@ -17,6 +17,8 @@ public class ResumeVersion {
     @Id
     @GeneratedValue
     private UUID id;
+    @Column(name = "owner_subject", length = 255)
+    private String ownerSubject;
 
     @Column(name = "job_id")
     private UUID jobId;
@@ -83,6 +85,8 @@ public class ResumeVersion {
     }
 
     public UUID getId() { return id; }
+    public String getOwnerSubject() { return ownerSubject; }
+    public void setOwnerSubject(String ownerSubject) { this.ownerSubject = ownerSubject; }
     public UUID getJobId() { return jobId; }
     public void setJobId(UUID jobId) { this.jobId = jobId; }
     public String getVersionName() { return versionName; }

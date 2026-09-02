@@ -21,6 +21,8 @@ public class Application {
     @Id
     @GeneratedValue
     private UUID id;
+    @Column(name = "owner_subject", length = 255)
+    private String ownerSubject;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
@@ -133,6 +135,8 @@ public class Application {
     public UUID getId() {
         return id;
     }
+    public String getOwnerSubject() { return ownerSubject; }
+    public void setOwnerSubject(String ownerSubject) { this.ownerSubject = ownerSubject; }
 
     public Job getJob() {
         return job;
