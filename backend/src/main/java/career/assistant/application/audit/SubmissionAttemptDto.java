@@ -1,0 +1,3 @@
+package career.assistant.application.audit;
+import java.time.OffsetDateTime; import java.util.UUID;
+public record SubmissionAttemptDto(UUID id,UUID applicationId,String atsProvider,SubmissionAttemptState state,String confirmationReference,String confirmationUrl,String failureCategory,OffsetDateTime createdAt,OffsetDateTime startedAt,OffsetDateTime completedAt) { static SubmissionAttemptDto of(SubmissionAttempt a){return new SubmissionAttemptDto(a.getId(),a.getApplicationId(),a.getAtsProvider(),a.getState(),a.getConfirmationReference(),a.getConfirmationUrl(),a.getFailureCategory(),a.getCreatedAt(),a.getStartedAt(),a.getCompletedAt());} }
