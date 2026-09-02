@@ -3,6 +3,7 @@
 import {useEffect, useMemo, useState} from "react";
 import ResumeVersions from "./resume-versions";
 import ApplicationWorkflow from "./application-workflow";
+import Settings from "./settings";
 import {AuthenticationRequiredError, useAuth} from "./auth-provider";
 
 type Job = {id:string; title:string|null; companyId:string|null; companyName?:string|null; description:string|null; location:string|null; country:string|null; city:string|null; employmentType:string|null; experienceMin:number|null; experienceMax:number|null; salaryMin:number|null; salaryMax:number|null; salaryCurrency:string|null; source:string|null; sourceJobId:string|null; jobUrl:string|null; postedAt:string|null; scrapedAt:string|null; status:string|null; createdAt:string|null; updatedAt:string|null};
@@ -67,7 +68,7 @@ export default function Home() {
     </aside>
     <main>
       <header><div><p className="eyebrow">CAREER WORKSPACE</p><h1>{active}</h1><p>UAE roles matched to your verified experience and skills.</p></div>{active !== "Resume Versions" && <button className="primary" onClick={() => navigate("New Jobs")}>＋ Review new jobs</button>}</header>
-      {active === "Resume Versions" ? <ResumeVersions apiBase={api}/> : workflowViews.includes(active) ? <ApplicationWorkflow apiBase={api} view={active}/> : <>
+      {active === "Resume Versions" ? <ResumeVersions apiBase={api}/> : active === "Settings" ? <Settings apiBase={api} apiFetch={apiFetch}/> : workflowViews.includes(active) ? <ApplicationWorkflow apiBase={api} view={active}/> : <>
         {offline && <div className="notice">Demo mode · Backend unavailable. Showing safe UAE fixtures.</div>}
         <section className="cards">{Object.entries(counts).map(([name, value], index) => <article key={name}><span className={`dot d${index}`}/><div><small>{name}</small><strong>{value}</strong><em>{index === 1 ? "75+ match" : "Current pipeline"}</em></div></article>)}</section>
         <section className="panel">
