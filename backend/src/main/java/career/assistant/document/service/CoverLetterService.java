@@ -146,16 +146,18 @@ public class CoverLetterService {
             List<String> highlights = entry.highlights().stream()
                     .sorted(Comparator.comparingInt((String value) -> relevance(value, matched)).reversed()).toList();
             int used = 0;
+            List<String> renderedHighlights = new ArrayList<>();
             for (String highlight : highlights) {
                 boolean hasNumber = highlight.matches(".*\\d.*");
                 if (hasNumber && quantified >= 2) continue;
-                if (used++ >= 2) break;
-                body.append(normalizeAfterI(highlight)).append(' ');
+                if (used++ >= 4) break;
+                renderedHighlights.add(renderedHighlights.isEmpty() ? normalizeAfterI(highlight) : highlight);
                 if (hasNumber) quantified++;
             }
+            body.append(joinSentences(renderedHighlights));
             body.append("\n\n");
         }
-        body.append("The combination of these platform and delivery experiences is why this role is a strong match for the work I have pursued. I would welcome the opportunity to discuss the responsibilities, priorities, and ways I could contribute from the outset.\n\n")
+        body.append("The combination of these platform and delivery experiences is why this role is a strong match for the work I have pursued. I would welcome the opportunity to discuss the responsibilities, priorities, and ways I could contribute from the outset. The work described here reflects a dependable, delivery-focused approach.\n\n")
                 .append("Thank you for considering my application. I would be glad to discuss how this background relates to the ").append(job.getTitle()).append(" position.\n\nSincerely,\n").append(resume.name());
         while (wordCount(body.toString()) < 250) {
             body.insert(body.lastIndexOf("\n\nThank you"), "The work described here reflects how I approach dependable delivery: understand the operational need, make the change repeatable, and keep the resulting platform clear to support.\n\n");
@@ -172,6 +174,10 @@ public class CoverLetterService {
     private String normalizeAfterI(String value) {
         if (value == null || value.isBlank() || !value.matches("^[A-Z][a-z]+.*")) return value;
         return Character.toLowerCase(value.charAt(0)) + value.substring(1);
+    }
+
+    private String joinSentences(List<String> sentences) {
+        return String.join(" ", sentences).replaceAll("([.!?])(?=\\S)", "$1 ");
     }
 
     private int relevance(ExperienceEntry entry, List<String> matched) {
