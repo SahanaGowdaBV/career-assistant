@@ -57,7 +57,7 @@ ROLE_PATTERNS = tuple(
         r"^sre\b",
         r"^cloud engineer\b",
         r"^cloud architect\b",
-        r"^platform engineer\b",
+        r"^(?:senior\s+)?platform engineer\b",
     )
 )
 

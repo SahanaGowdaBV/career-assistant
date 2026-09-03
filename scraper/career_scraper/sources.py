@@ -80,7 +80,6 @@ def fetch_ashby(source: dict[str, Any], client: PublicHttpClient) -> list[RawJob
             not isinstance(item, dict)
             or not item.get("id")
             or item.get("isListed") is False
-            or not is_target_role(item.get("title", ""))
         ):
             continue
         locations = [clean_text(item.get("location"))]

@@ -63,6 +63,7 @@ def test_role_filter_is_strict_to_requested_role_families():
         "Cloud Engineer",
         "Cloud Architect",
         "Platform Engineer",
+        "Senior Platform Engineer (Infrastructure)",
     ]
     for title in accepted:
         assert is_target_role(title), title
