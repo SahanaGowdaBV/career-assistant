@@ -50,6 +50,10 @@ public final class SkillCatalog {
         add("Networking", "networking");
         add("DevOps", "devops");
         add("SRE", "sre", "site reliability engineering");
+        add("Microservices", "microservices", "microservice architecture");
+        add("Incident response", "incident response", "incident management");
+        add("On-call", "on-call", "on call");
+        add("AI tools", "ai tools", "artificial intelligence tools");
     }
 
     private SkillCatalog() {

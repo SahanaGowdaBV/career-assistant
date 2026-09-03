@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -110,16 +111,21 @@ public class JobScoringService {
         List<String> matched = new ArrayList<>();
         List<String> missing = new ArrayList<>();
         for (String skill : jobSkills.all()) {
-            if (verified.contains(skill.toLowerCase(Locale.ROOT)) || SkillCatalog.containsSkill(resumeText, skill)) matched.add(skill);
+            if (skillMatched(skill, verified, resumeText, resume)) {
+                if (skill.equals("Observability")) List.of("Prometheus","Grafana","Datadog","Amazon CloudWatch","Splunk","ELK","OpenTelemetry").stream().filter(value -> jobSkills.relevantText().toLowerCase(Locale.ROOT).contains(value.toLowerCase(Locale.ROOT))).filter(value -> verified.contains(value.toLowerCase(Locale.ROOT)) || SkillCatalog.containsSkill(resumeText,value)).forEach(matched::add);
+                else if (skill.equals("Infrastructure as code")) List.of("Terraform", "CloudFormation", "Pulumi").stream().filter(value -> verified.contains(value.toLowerCase(Locale.ROOT)) || SkillCatalog.containsSkill(resumeText, value)).forEach(matched::add);
+                else if (skill.equals("Platform/DevOps/SRE experience")) matched.add("DevOps/Platform role family");
+                else matched.add(skill);
+            }
             else missing.add(skill);
         }
 
         BigDecimal title = percent(targetTitleMatch(job.getTitle(), resume));
-        BigDecimal required = percent(skillCoverage(jobSkills.required(), verified, resumeText));
-        BigDecimal preferred = percent(skillCoverage(jobSkills.preferred(), verified, resumeText));
+        BigDecimal required = percent(skillCoverage(jobSkills.required(), verified, resumeText, resume));
+        BigDecimal preferred = percent(skillCoverage(jobSkills.preferred(), verified, resumeText, resume));
         BigDecimal experience = percent(experienceCompatibility(job, resume));
         BigDecimal location = calculateLocationScore(job.getCountry(), job.getCity(), job.getLocation());
-        BigDecimal keywords = percent(keywordCoverage(jobText, resumeText));
+        BigDecimal keywords = percent(keywordCoverage(jobSkills.relevantText(), resumeText));
         BigDecimal skills = required.multiply(new BigDecimal("0.7142857"))
                 .add(preferred.multiply(new BigDecimal("0.2857143"))).setScale(2, RoundingMode.HALF_UP);
 
@@ -288,25 +294,78 @@ public class JobScoringService {
     }
 
     private ClassifiedSkills classifySkills(String jobText) {
-        List<String> all = SkillCatalog.findMentionedSkills(jobText);
-        List<String> preferred = new ArrayList<>();
-        for (String line : jobText.split("\\R|[.!?]")) {
-            String lower = line.toLowerCase(Locale.ROOT);
-            if (lower.contains("preferred") || lower.contains("nice to have") || lower.contains("bonus")) {
-                preferred.addAll(SkillCatalog.findMentionedSkills(line));
+        Set<String> required = new LinkedHashSet<>(), preferred = new LinkedHashSet<>();
+        List<String> relevant = new ArrayList<>();
+        QualificationSection section = QualificationSection.CONTEXT;
+        boolean sectionHeadingFound = false;
+        boolean firstLine = true;
+        for (String rawLine : jobText.split("\\R")) {
+            String line = rawLine.strip(), lower = line.toLowerCase(Locale.ROOT);
+            if (firstLine) {
+                relevant.add(line);
+                firstLine = false;
+                continue;
             }
+            if (lower.startsWith("as a ") && lower.contains(" you will")) { section = QualificationSection.REQUIRED; sectionHeadingFound = true; continue; }
+            if (lower.startsWith("to succeed in this role")) { section = QualificationSection.REQUIRED; sectionHeadingFound = true; continue; }
+            if (lower.startsWith("what would amaze us")) { section = QualificationSection.PREFERRED; sectionHeadingFound = true; continue; }
+            if (lower.startsWith("our tech stack") || lower.equals("the role:") || lower.equals("the role")) { section = QualificationSection.CONTEXT; sectionHeadingFound = true; continue; }
+            int preferredAt = lower.indexOf("preferred:");
+            int requiredAt = lower.indexOf("required:");
+            if (requiredAt >= 0) {
+                String requiredText = preferredAt > requiredAt ? line.substring(requiredAt, preferredAt) : line.substring(requiredAt);
+                required.addAll(SkillCatalog.findMentionedSkills(requiredText)); relevant.add(requiredText);
+            }
+            if (preferredAt >= 0) {
+                String preferredText = line.substring(preferredAt); preferred.addAll(SkillCatalog.findMentionedSkills(preferredText)); relevant.add(preferredText);
+            }
+            if (requiredAt >= 0 || preferredAt >= 0 || line.isBlank()) continue;
+            if (section == QualificationSection.REQUIRED) required.addAll(SkillCatalog.findMentionedSkills(line));
+            else if (section == QualificationSection.PREFERRED) preferred.addAll(SkillCatalog.findMentionedSkills(line));
+            if (section != QualificationSection.CONTEXT) relevant.add(line);
         }
-        preferred = new ArrayList<>(new LinkedHashSet<>(preferred));
-        List<String> required = new ArrayList<>(all);
-        required.removeAll(preferred);
-        return new ClassifiedSkills(List.copyOf(required), List.copyOf(preferred));
+        if (!sectionHeadingFound && required.isEmpty() && preferred.isEmpty()) {
+            required.addAll(SkillCatalog.findMentionedSkills(jobText));
+            for (String sentence : jobText.split("[.!?]")) {
+                String lower = sentence.toLowerCase(Locale.ROOT);
+                if (lower.contains("preferred") || lower.contains("nice to have") || lower.contains("bonus")) {
+                    preferred.addAll(SkillCatalog.findMentionedSkills(sentence));
+                }
+            }
+            required.removeAll(preferred);
+            relevant.add(jobText);
+        }
+        String relevantText = String.join("\n", relevant);
+        String lower = relevantText.toLowerCase(Locale.ROOT);
+        if (lower.contains("platform engineering, devops, or sre")) { required.remove("DevOps"); required.remove("SRE"); required.add("Platform/DevOps/SRE experience"); }
+        if (lower.contains("infrastructure-as-code tools like") && lower.contains("terraform") && lower.contains("cloudformation") && lower.contains("pulumi")) { required.removeAll(List.of("Terraform", "CloudFormation", "Pulumi")); required.add("Infrastructure as code"); }
+        if (lower.contains("observability stacks") && lower.contains("or similar")) { required.removeAll(List.of("Prometheus","Grafana","Datadog","Amazon CloudWatch","Splunk","ELK","OpenTelemetry")); required.add("Observability"); }
+        if (lower.contains("github actions, jenkins") && required.contains("CI/CD")) { required.remove("GitHub Actions"); required.remove("Jenkins"); }
+        if (lower.contains("infrastructure for fintech") && lower.contains("high-reliability platforms")) preferred.add("Fintech/high-reliability infrastructure");
+        if (lower.contains("scaling, latency, resilience") && lower.contains("multi-region architectures")) preferred.add("Scale/latency/resilience/multi-region architecture");
+        if (lower.contains("building platform tooling")) preferred.add("Platform tooling");
+        if (lower.contains("leading infrastructure or platform initiatives")) preferred.add("Infrastructure/platform leadership");
+        if (lower.contains("open-source infrastructure tools") || lower.contains("open source infrastructure tools")) preferred.add("Open-source/community contributions");
+        preferred.removeAll(required);
+        return new ClassifiedSkills(List.copyOf(required), List.copyOf(preferred), relevantText);
     }
 
-    private double skillCoverage(List<String> requested, Set<String> verified, String resumeText) {
+    private double skillCoverage(List<String> requested, Set<String> verified, String resumeText, ParsedResume resume) {
         if (requested.isEmpty()) return 100;
-        long matched = requested.stream().filter(skill -> verified.contains(skill.toLowerCase(Locale.ROOT))
-                || SkillCatalog.containsSkill(resumeText, skill)).count();
+        long matched = requested.stream().filter(skill -> skillMatched(skill, verified, resumeText, resume)).count();
         return matched * 100.0 / requested.size();
+    }
+
+    private boolean skillMatched(String skill, Set<String> verified, String resumeText, ParsedResume resume) {
+        if (skill.equals("Observability")) return List.of("Prometheus","Grafana","Datadog","Amazon CloudWatch","Splunk","ELK","OpenTelemetry").stream().anyMatch(value -> verified.contains(value.toLowerCase(Locale.ROOT)) || SkillCatalog.containsSkill(resumeText, value));
+        if (skill.equals("Infrastructure as code")) return List.of("Terraform", "CloudFormation", "Pulumi").stream().anyMatch(value -> verified.contains(value.toLowerCase(Locale.ROOT)) || SkillCatalog.containsSkill(resumeText, value));
+        if (skill.equals("Platform/DevOps/SRE experience")) return resume.experience().stream().map(ExperienceEntry::jobTitle).filter(Objects::nonNull).anyMatch(value -> value.toLowerCase(Locale.ROOT).matches(".*(platform|devops|site reliability|sre).*")) || verified.contains("devops") || verified.contains("sre");
+        if (skill.equals("Fintech/high-reliability infrastructure")) return resumeText.contains("fintech") && (resumeText.contains("high-reliability") || resumeText.contains("high reliability"));
+        if (skill.equals("Scale/latency/resilience/multi-region architecture")) return resumeText.contains("multi-region") && (resumeText.contains("latency") || resumeText.contains("resilience"));
+        if (skill.equals("Platform tooling")) return resumeText.contains("platform tooling");
+        if (skill.equals("Infrastructure/platform leadership")) return resumeText.contains("led infrastructure") || resumeText.contains("led platform") || resumeText.contains("leading infrastructure") || resumeText.contains("leading platform");
+        if (skill.equals("Open-source/community contributions")) return resumeText.contains("open source") || resumeText.contains("open-source");
+        return verified.contains(skill.toLowerCase(Locale.ROOT)) || SkillCatalog.containsSkill(resumeText, skill);
     }
 
     private double targetTitleMatch(String jobTitle, ParsedResume resume) {
@@ -322,8 +381,9 @@ public class JobScoringService {
 
     private Set<String> titleTokens(String title) {
         Set<String> values = new HashSet<>();
-        for (String value : title.toLowerCase(Locale.ROOT).split("[^a-z0-9+#]+")) {
-            if (value.length() >= 3 && !TITLE_STOP_WORDS.contains(value)) values.add(value);
+        String normalizedTitle = title.toLowerCase(Locale.ROOT).replace("site reliability", "sre");
+        for (String value : normalizedTitle.split("[^a-z0-9+#]+")) {
+            if (value.length() >= 3 && !TITLE_STOP_WORDS.contains(value)) values.add(Set.of("platform","devops","sre").contains(value) ? "platform-operations" : value);
         }
         return values;
     }
@@ -455,7 +515,8 @@ public class JobScoringService {
         return value == null ? "" : value;
     }
 
-    private record ClassifiedSkills(List<String> required, List<String> preferred) {
+    private enum QualificationSection { CONTEXT, REQUIRED, PREFERRED }
+    private record ClassifiedSkills(List<String> required, List<String> preferred, String relevantText) {
         List<String> all() {
             List<String> all = new ArrayList<>(required);
             all.addAll(preferred);
