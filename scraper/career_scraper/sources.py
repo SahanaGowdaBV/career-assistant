@@ -101,6 +101,44 @@ def fetch_ashby(source: dict[str, Any], client: PublicHttpClient) -> list[RawJob
     return output
 
 
+def fetch_amazon(source: dict[str, Any], client: PublicHttpClient) -> list[RawJob]:
+    """Read Amazon's official public job-search JSON endpoint."""
+    output: list[RawJob] = []
+    seen: set[str] = set()
+    for term in SEARCH_TERMS:
+        payload = client.get_json(
+            "https://www.amazon.jobs/en/search.json",
+            params={
+                "base_query": term,
+                "loc_query": "United Arab Emirates",
+                "result_limit": 100,
+            },
+        )
+        for item in payload.get("jobs", []) if isinstance(payload, dict) else []:
+            if not isinstance(item, dict) or not item.get("id") or not is_target_role(item.get("title", "")):
+                continue
+            identifier = clean_text(item["id"])
+            if identifier in seen:
+                continue
+            seen.add(identifier)
+            path = clean_text(item.get("job_path"))
+            output.append(RawJob(
+                title=clean_text(item.get("title")),
+                company=source["name"],
+                location=clean_text(item.get("location")),
+                description="\n".join(filter(None, (
+                    clean_text(item.get("description")),
+                    clean_text(item.get("basic_qualifications")),
+                    clean_text(item.get("preferred_qualifications")),
+                ))),
+                source="COMPANY_CAREER_PAGE",
+                source_id=f"amazon-{identifier}",
+                url=path if path.startswith("http") else f"https://www.amazon.jobs{path}",
+                posted_at=item.get("posted_date"),
+            ))
+    return output
+
+
 def _workday_url(source: dict[str, Any], external_path: str) -> str:
     if external_path.startswith("http"):
         return external_path
@@ -400,6 +438,7 @@ FETCHERS = {
     "greenhouse": fetch_greenhouse,
     "lever": fetch_lever,
     "ashby": fetch_ashby,
+    "amazon": fetch_amazon,
     "workday": fetch_workday,
     "oracle": fetch_oracle,
     "workable": fetch_workable,

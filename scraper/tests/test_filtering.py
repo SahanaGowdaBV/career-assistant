@@ -59,11 +59,14 @@ def test_role_filter_is_strict_to_requested_role_families():
         "Lead DevOps Engineer",
         "DevSecOps Engineer",
         "Site Reliability Engineer",
+        "Senior Site Reliability Engineer",
         "SRE",
-        "Cloud Engineer",
-        "Cloud Architect",
         "Platform Engineer",
+        "Lead Platform Engineer",
         "Senior Platform Engineer (Infrastructure)",
+        "Cloud DevOps Engineer",
+        "Cloud Infrastructure Engineer",
+        "Infrastructure Engineer",
     ]
     for title in accepted:
         assert is_target_role(title), title
@@ -72,8 +75,8 @@ def test_role_filter_is_strict_to_requested_role_families():
         "Cloud Security Engineer",
         "Senior Engineer, Platform Engineering and Architecture",
         "Senior Engineer - DevOps",
-        "Senior Site Reliability Engineer",
-        "Lead Platform Engineer",
+        "Cloud Engineer",
+        "Cloud Architect",
         "Staff Cloud Engineer",
         "Junior DevOps Engineer",
         "Software Engineer",
@@ -170,3 +173,13 @@ def test_deduplication_uses_source_id_and_canonicalized_url():
     jobs, duplicate_count = deduplicate([first, same_source, same_url, unique])
     assert jobs == [first, unique]
     assert duplicate_count == 2
+
+
+def test_cross_source_tracking_urls_are_deduplicated():
+    first, _ = normalize(raw_job())
+    assert first is not None
+    cross_source = Job(**{**first.__dict__, "source": "GREENHOUSE", "source_id": "other-456",
+                          "url": "https://EXAMPLE.com/jobs/123/?utm_source=linkedin"})
+    jobs, duplicate_count = deduplicate([first, cross_source])
+    assert jobs == [first]
+    assert duplicate_count == 1

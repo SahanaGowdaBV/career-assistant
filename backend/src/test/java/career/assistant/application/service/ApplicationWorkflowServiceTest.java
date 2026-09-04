@@ -60,6 +60,31 @@ class ApplicationWorkflowServiceTest {
         verifyNoInteractions(resumes, letters);
     }
 
+    @Test void highConfidenceJobBelowAutoApplyThresholdCanGenerateManualDocuments() {
+        UUID jobId = UUID.randomUUID();
+        Job job = job(jobId);
+        JobScore score = score("HIGH", 59);
+        UUID resumeId = UUID.randomUUID(), letterId = UUID.randomUUID();
+        ResumeDetailsResponse resume = new ResumeDetailsResponse(resumeId, "resume.docx", null, 1, "CUSTOMIZED", false,
+                true, CoverLetterService.DOCX, 100, "sum", "", null, null, jobId, "");
+        CoverLetter letter = new CoverLetter();
+        setId(letter, letterId);
+        when(jobs.findRequired(jobId)).thenReturn(job);
+        when(scoring.findOrScore(job)).thenReturn(score);
+        when(apps.findByJobId(jobId)).thenReturn(Optional.empty());
+        when(resumes.createCustomized(jobId)).thenReturn(resume);
+        when(letters.generate(job)).thenReturn(letter);
+        when(apps.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.generate(jobId, false);
+
+        assertEquals(ApplicationStatus.PENDING_REVIEW, result.status());
+        assertEquals(resumeId, result.resumeVersionId());
+        assertEquals(letterId, result.coverLetterId());
+        verify(resumes).createCustomized(jobId);
+        verify(letters).generate(job);
+    }
+
     @Test void existingPackageRegeneratesVersionsOnExplicitGenerateAndReusesApplication() {
         UUID jobId = UUID.randomUUID(); Job job = job(jobId); Application application = packaged(job, ApplicationStatus.PENDING_REVIEW);
         UUID applicationId = UUID.randomUUID(); setId(application, applicationId);

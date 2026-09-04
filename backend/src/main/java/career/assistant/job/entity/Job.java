@@ -78,6 +78,18 @@ public class Job {
     @Column(name = "job_url", nullable = false, length = 1000)
     private String jobUrl;
 
+    @Column(name = "canonical_url", length = 1000)
+    private String canonicalUrl;
+
+    @Column(name = "owner_subject", length = 255)
+    private String ownerSubject;
+
+    @Column(name = "source_portal", length = 150)
+    private String sourcePortal;
+
+    @Column(name = "experience_text", length = 500)
+    private String experienceText;
+
     @Column(name = "posted_at")
     private OffsetDateTime postedAt;
 
@@ -238,6 +250,15 @@ public class Job {
     public void setJobUrl(String jobUrl) {
         this.jobUrl = jobUrl;
     }
+
+    public String getCanonicalUrl() { return canonicalUrl; }
+    public void setCanonicalUrl(String canonicalUrl) { this.canonicalUrl = canonicalUrl; }
+    public String getOwnerSubject() { return ownerSubject; }
+    public void setOwnerSubject(String ownerSubject) { this.ownerSubject = ownerSubject; }
+    public String getSourcePortal() { return sourcePortal; }
+    public void setSourcePortal(String sourcePortal) { this.sourcePortal = sourcePortal; }
+    public String getExperienceText() { return experienceText; }
+    public void setExperienceText(String experienceText) { this.experienceText = experienceText; }
 
     public OffsetDateTime getPostedAt() {
         return postedAt;

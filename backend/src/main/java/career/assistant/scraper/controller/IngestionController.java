@@ -55,6 +55,7 @@ public class IngestionController {
             }
             String canonicalUrl = canonicalUrl(raw.url());
             if (jobs.existsBySourceAndSourceJobId(raw.source(), raw.sourceId())
+                    || jobs.existsByCanonicalUrl(canonicalUrl)
                     || jobs.existsByJobUrlIn(urlVariants(canonicalUrl))) {
                 duplicates++;
                 continue;
@@ -77,6 +78,7 @@ public class IngestionController {
             job.setSource(raw.source());
             job.setSourceJobId(raw.sourceId());
             job.setJobUrl(canonicalUrl);
+            job.setCanonicalUrl(canonicalUrl);
             job.setPostedAt(raw.postedAt());
             job.setStatus(raw.experienceUnknown() ? "PENDING_REVIEW" : "NEW");
             saved.add(JobMapper.toResponse(jobs.create(job)));

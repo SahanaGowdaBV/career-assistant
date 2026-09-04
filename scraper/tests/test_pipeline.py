@@ -19,13 +19,13 @@ def test_pipeline_isolates_source_failures_and_caps_results(monkeypatch):
             posted_at=None,
         )]
 
-    monkeypatch.setitem(source_module.FETCHERS, "broken", broken)
-    monkeypatch.setitem(source_module.FETCHERS, "working", working)
+    monkeypatch.setitem(source_module.FETCHERS, "greenhouse", broken)
+    monkeypatch.setitem(source_module.FETCHERS, "lever", working)
     monkeypatch.setattr("career_scraper.pipeline.FETCHERS", source_module.FETCHERS)
     pipeline = Pipeline(
         sources=[
-            {"name": "Broken", "kind": "broken"},
-            {"name": "Working", "kind": "working"},
+            {"name": "Broken", "kind": "greenhouse"},
+            {"name": "Working", "kind": "lever"},
         ],
         client=object(),
         max_results=1,
@@ -39,7 +39,7 @@ def test_pipeline_isolates_source_failures_and_caps_results(monkeypatch):
 def test_pipeline_caps_processed_candidates(monkeypatch):
     def many(source, _client):
         return [RawJob(
-            title="Cloud Engineer",
+            title="Cloud DevOps Engineer",
             company=source["name"],
             location="Dubai, UAE",
             description="Experience with cloud platforms.",
@@ -48,10 +48,10 @@ def test_pipeline_caps_processed_candidates(monkeypatch):
             url=f"https://example.com/jobs/{index}",
         ) for index in range(5)]
 
-    monkeypatch.setitem(source_module.FETCHERS, "many", many)
+    monkeypatch.setitem(source_module.FETCHERS, "greenhouse", many)
     monkeypatch.setattr("career_scraper.pipeline.FETCHERS", source_module.FETCHERS)
     pipeline = Pipeline(
-        sources=[{"name": "Many", "kind": "many"}],
+        sources=[{"name": "Many", "kind": "greenhouse"}],
         client=object(),
         max_results=5,
         max_candidates=3,
@@ -61,3 +61,30 @@ def test_pipeline_caps_processed_candidates(monkeypatch):
     assert pipeline.candidates_processed == 3
     assert pipeline.source_results[0].discovered == 5
     assert pipeline.source_results[0].fetched == 3
+
+
+def test_pipeline_deduplicates_canonical_url_across_sources(monkeypatch):
+    def jobs(source, _client):
+        suffix = "?utm_source=partner" if source["name"] == "Second" else "/"
+        return [RawJob(
+            title="Platform Engineer",
+            company=source["name"],
+            location="Dubai, UAE",
+            description="Requires 5 years of experience.",
+            source=source["name"].upper(),
+            source_id=f"{source['name']}-id",
+            url=f"https://careers.example.com/jobs/123{suffix}",
+        )]
+
+    monkeypatch.setitem(source_module.FETCHERS, "greenhouse", jobs)
+    monkeypatch.setitem(source_module.FETCHERS, "lever", jobs)
+    monkeypatch.setattr("career_scraper.pipeline.FETCHERS", source_module.FETCHERS)
+    pipeline = Pipeline(sources=[
+        {"name": "First", "kind": "greenhouse"},
+        {"name": "Second", "kind": "lever"},
+    ], client=object(), max_results=5)
+
+    result = pipeline.run()
+
+    assert len(result) == 1
+    assert pipeline.duplicates == 1

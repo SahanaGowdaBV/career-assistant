@@ -5,6 +5,7 @@ import career.assistant.api.ResourceNotFoundException;
 import career.assistant.job.entity.Job;
 import career.assistant.job.exception.DuplicateJobException;
 import career.assistant.job.service.JobService;
+import career.assistant.job.service.ManualJobImportService;
 import career.assistant.company.repository.CompanyRepository;
 import career.assistant.company.entity.Company;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,13 +31,15 @@ class JobControllerTest {
     private JobService jobService;
     private CompanyRepository companies;
     private MockMvc mockMvc;
+    private ManualJobImportService manualJobs;
 
     @BeforeEach
     void setUp() {
         jobService = mock(JobService.class);
         companies = mock(CompanyRepository.class);
+        manualJobs = mock(ManualJobImportService.class);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new JobController(jobService, companies))
+                .standaloneSetup(new JobController(jobService, companies, manualJobs))
                 .setControllerAdvice(new GlobalApiExceptionHandler())
                 .build();
     }
@@ -119,6 +122,36 @@ class JobControllerTest {
         mockMvc.perform(get("/api/jobs/not-a-uuid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Invalid value for 'id'"));
+    }
+
+    @Test
+    void createsValidatedManualJob() throws Exception {
+        Job manual = job();
+        manual.setSource(career.assistant.scraper.config.JobSource.MANUAL);
+        manual.setSourcePortal("Bayt");
+        when(manualJobs.create(any())).thenReturn(manual);
+
+        mockMvc.perform(post("/api/jobs/manual")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Platform Engineer","company":"Example","location":"Dubai, UAE",
+                                 "experienceText":"5+ years","description":"A complete public job description.",
+                                 "applicationUrl":"https://careers.example.com/jobs/123","sourcePortal":"Bayt"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.source").value("MANUAL"))
+                .andExpect(jsonPath("$.sourcePortal").value("Bayt"));
+    }
+
+    @Test
+    void rejectsIncompleteManualJobBeforeServiceCall() throws Exception {
+        mockMvc.perform(post("/api/jobs/manual")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.title").exists())
+                .andExpect(jsonPath("$.validationErrors.description").exists())
+                .andExpect(jsonPath("$.validationErrors.applicationUrl").exists());
     }
 
     private Job job() {

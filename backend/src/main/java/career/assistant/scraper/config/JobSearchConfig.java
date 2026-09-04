@@ -25,13 +25,13 @@ public class JobSearchConfig {
             List.of(
                     "DevOps Engineer",
                     "Senior DevOps Engineer",
-                    "Cloud Engineer",
+                    "DevSecOps Engineer",
                     "Cloud DevOps Engineer",
                     "Site Reliability Engineer",
                     "SRE",
                     "Platform Engineer",
-                    "DevOps Architect",
-                    "Cloud Architect"
+                    "Cloud Infrastructure Engineer",
+                    "Infrastructure Engineer"
             )
     );
 
@@ -45,7 +45,12 @@ public class JobSearchConfig {
                     "GitHub Actions",
                     "CI/CD",
                     "Jenkins",
-                    "Linux"
+                    "Linux",
+                    "Grafana",
+                    "Prometheus",
+                    "Ansible",
+                    "CloudWatch",
+                    "EKS"
             )
     );
 

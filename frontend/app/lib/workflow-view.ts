@@ -9,9 +9,9 @@ export const workflowStatuses: Partial<Record<string, WorkflowStatus[]>> = {
 };
 
 export function applicationActions(status: WorkflowStatus): string[] {
-  if (status === "PENDING_REVIEW") return ["Redacted dry-run preview", "Regenerate application package", "Approve as Ready to Apply", "Reject"];
-  if (status === "REJECTED") return ["Redacted dry-run preview", "Return to review"];
-  if (status === "READY_TO_APPLY") return ["Redacted dry-run preview", "Validate dry run", "Return to review", "Mark manually applied"];
+  if (status === "PENDING_REVIEW") return ["Regenerate résumé + cover letter", "Documents reviewed", "Reject"];
+  if (status === "REJECTED") return ["Return to review"];
+  if (status === "READY_TO_APPLY") return ["Return to review", "Mark manually applied"];
   return [];
 }
 

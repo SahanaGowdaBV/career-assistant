@@ -7,8 +7,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .config import SOURCES
-from .filtering import normalize
+from .config import SOURCES, validate_source
+from .filtering import canonical_url, normalize
 from .http import PublicHttpClient
 from .models import Job, SourceResult
 from .sources import FETCHERS
@@ -35,6 +35,8 @@ class Pipeline:
         if max_candidates < 1 or max_candidates > 200:
             raise ValueError("max_candidates must be between 1 and 200")
         self.sources = sources if sources is not None else SOURCES
+        for source in self.sources:
+            validate_source(source)
         self.client = client or PublicHttpClient()
         self.max_results = max_results
         self.max_candidates = max_candidates
@@ -48,7 +50,7 @@ class Pipeline:
         seen_source: set[tuple[str, str]] = set()
         seen_url: set[str] = set()
         for source in self.sources:
-            if len(accepted) >= self.max_results or self.candidates_processed >= self.max_candidates:
+            if len(accepted) >= self.max_results:
                 break
             name, kind = str(source.get("name") or "unknown"), str(source.get("kind") or "unknown")
             result = SourceResult(source=name, kind=kind)
@@ -60,7 +62,7 @@ class Pipeline:
                 raw_jobs = fetcher(source, self.client)
                 result.discovered = len(raw_jobs)
                 for raw in raw_jobs:
-                    if self.candidates_processed >= self.max_candidates:
+                    if result.fetched >= self.max_candidates:
                         break
                     self.candidates_processed += 1
                     result.fetched += 1
@@ -70,7 +72,7 @@ class Pipeline:
                         self.rejection_reasons[reason or "unknown"] += 1
                         continue
                     key = (job.source, job.source_id.casefold())
-                    url_key = job.url.rstrip("/").casefold()
+                    url_key = canonical_url(job.url)
                     if key in seen_source or url_key in seen_url:
                         result.duplicates += 1
                         self.duplicates += 1

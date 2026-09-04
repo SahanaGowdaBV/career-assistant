@@ -17,6 +17,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import career.assistant.job.entity.Job;
 import career.assistant.company.repository.CompanyRepository;
+import career.assistant.job.dto.ManualJobRequest;
+import career.assistant.job.service.ManualJobImportService;
 
 @RestController
 @RequestMapping("/api/jobs")
@@ -24,10 +26,12 @@ public class JobController {
 
     private final JobService jobService;
     private final CompanyRepository companies;
+    private final ManualJobImportService manualJobs;
 
-    public JobController(JobService jobService, CompanyRepository companies) {
+    public JobController(JobService jobService, CompanyRepository companies, ManualJobImportService manualJobs) {
         this.jobService = jobService;
         this.companies = companies;
+        this.manualJobs = manualJobs;
     }
 
     @GetMapping
@@ -81,6 +85,11 @@ public class JobController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response(jobService.create(JobMapper.toEntity(request))));
+    }
+
+    @PostMapping("/manual")
+    public ResponseEntity<JobResponse> createManualJob(@Valid @RequestBody ManualJobRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(response(manualJobs.create(request)));
     }
 
     @DeleteMapping("/{id}")

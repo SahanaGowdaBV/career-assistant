@@ -70,7 +70,7 @@ public class ApplicationWorkflowService {
             @Value("${career.application.auto-apply-enabled:false}") boolean enabled,
             @Value("${career.application.dry-run:true}") boolean dryRun,
             @Value("${career.application.max-real-submissions-daily:1}") int dailyLimit,
-            @Value("${career.application.minimum-score:80}") BigDecimal minimumScore,
+            @Value("${career.application.minimum-score:75}") BigDecimal minimumScore,
             @Value("${career.application.allowlisted-domains:}") String domains
     ) {
         this.apps = apps;

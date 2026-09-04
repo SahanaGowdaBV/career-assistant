@@ -1,0 +1,51 @@
+.panel {
+  padding-bottom: 22px;
+}
+
+.notice {
+  margin: 0 22px 18px;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  padding: 0 22px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #dfe6e2;
+  border-radius: 7px;
+  padding: 10px;
+  font: inherit;
+}
+
+.field small {
+  color: #9b2c2c;
+}
+
+.form button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+@media (max-width: 620px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+}

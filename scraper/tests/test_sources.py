@@ -1,5 +1,8 @@
 from career_scraper.filtering import deduplicate, normalize
-from career_scraper.sources import fetch_ashby
+import pytest
+
+from career_scraper.config import SOURCES, validate_source
+from career_scraper.sources import fetch_amazon, fetch_ashby
 
 
 class FakeClient:
@@ -83,3 +86,37 @@ def test_target_infrastructure_posting_preserves_official_fields():
     assert job.source_id == "ashby-ziina-0e2861ef-b501-4591-88bd-f418a63620d8"
     assert "5+ years" in job.description
     assert (job.experience_min, job.experience_max) == (5, None)
+
+
+class AmazonClient:
+    def get_json(self, url, **kwargs):
+        assert url == "https://www.amazon.jobs/en/search.json"
+        assert kwargs["params"]["loc_query"] == "United Arab Emirates"
+        return {"jobs": [{
+            "id": "amazon-123",
+            "title": "Cloud Infrastructure Engineer",
+            "location": "Dubai, United Arab Emirates",
+            "description": "Operate AWS infrastructure.",
+            "basic_qualifications": "5+ years of experience with Kubernetes.",
+            "preferred_qualifications": "Terraform experience preferred.",
+            "job_path": "/en/jobs/amazon-123/cloud-infrastructure-engineer",
+            "posted_date": "September 1, 2026",
+        }]}
+
+
+def test_amazon_uses_official_public_feed_and_stable_job_id():
+    jobs = fetch_amazon({"kind": "amazon", "name": "Amazon"}, AmazonClient())
+    assert jobs
+    assert {job.source_id for job in jobs} == {"amazon-amazon-123"}
+    assert jobs[0].url == "https://www.amazon.jobs/en/jobs/amazon-123/cloud-infrastructure-engineer"
+    assert "5+ years" in jobs[0].description
+
+
+def test_official_source_configuration_is_allowlisted_and_includes_verified_additions():
+    for source in SOURCES:
+        validate_source(source)
+    assert {source["name"] for source in SOURCES} >= {"Amazon", "Accenture", "Ziina", "Careem"}
+    with pytest.raises(ValueError):
+        validate_source({"kind": "official_html", "name": "Unsafe", "list_url": "http://private.invalid/jobs"})
+    with pytest.raises(ValueError):
+        validate_source({"kind": "linkedin", "name": "LinkedIn"})

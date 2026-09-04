@@ -7,6 +7,17 @@ browser automation is used.
 
 SOURCES = [
     {
+        "kind": "amazon",
+        "name": "Amazon",
+    },
+    {
+        "kind": "workday",
+        "name": "Accenture",
+        "host": "accenture.wd103.myworkdayjobs.com",
+        "tenant": "accenture",
+        "site": "AccentureCareers",
+    },
+    {
         "kind": "oracle",
         "name": "e&",
         "host": "iaayey.fa.ocs.oraclecloud26.com",
@@ -95,9 +106,35 @@ SOURCES = [
 
 SEARCH_TERMS = (
     "DevOps Engineer",
+    "Senior DevOps Engineer",
+    "DevSecOps Engineer",
     "Site Reliability Engineer",
     "SRE",
-    "Cloud Engineer",
-    "Cloud Architect",
     "Platform Engineer",
+    "Cloud DevOps Engineer",
+    "Cloud Infrastructure Engineer",
+    "Infrastructure Engineer",
 )
+
+PRIORITY_KEYWORDS = (
+    "AWS", "Kubernetes", "Docker", "Terraform", "Helm", "GitHub Actions",
+    "Jenkins", "CI/CD", "Linux", "Grafana", "Prometheus", "Ansible",
+    "CloudWatch", "EKS",
+)
+
+
+def validate_source(source: dict) -> None:
+    """Fail closed before contacting anything except configured public career providers."""
+    kind = source.get("kind")
+    if kind not in {"amazon", "ashby", "greenhouse", "lever", "workable", "smartrecruiters", "workday", "oracle", "phenom", "official_html"}:
+        raise ValueError("Unsupported public source kind")
+    if not str(source.get("name") or "").strip():
+        raise ValueError("Official source name is required")
+    if kind == "workday" and not str(source.get("host") or "").lower().endswith(".myworkdayjobs.com"):
+        raise ValueError("Workday source host is not allowlisted")
+    if kind == "oracle" and ".oraclecloud" not in str(source.get("host") or "").lower():
+        raise ValueError("Oracle source host is not allowlisted")
+    for key in ("base_url", "list_url"):
+        value = source.get(key)
+        if value and not str(value).startswith("https://"):
+            raise ValueError("Official career source URLs must use HTTPS")

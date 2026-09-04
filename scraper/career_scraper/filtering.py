@@ -4,6 +4,7 @@ import html
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
@@ -54,10 +55,12 @@ ROLE_PATTERNS = tuple(
         r"^(?:senior\s+|lead\s+)?dev[\s-]?ops engineer\b",
         r"^devsecops engineer\b",
         r"^site reliability engineer\b",
+        r"^senior site reliability engineer\b",
         r"^sre\b",
-        r"^cloud engineer\b",
-        r"^cloud architect\b",
-        r"^(?:senior\s+)?platform engineer\b",
+        r"^(?:senior\s+|lead\s+)?platform engineer\b",
+        r"^cloud devops engineer\b",
+        r"^cloud infrastructure engineer\b",
+        r"^infrastructure engineer\b",
     )
 )
 
@@ -208,7 +211,7 @@ def deduplicate(jobs: Iterable[Job]) -> tuple[list[Job], int]:
     duplicates = 0
     for job in jobs:
         source_key = (job.source, job.source_id.casefold())
-        url_key = job.url.rstrip("/").casefold()
+        url_key = canonical_url(job.url)
         if source_key in seen_source or url_key in seen_url:
             duplicates += 1
             continue
@@ -216,3 +219,11 @@ def deduplicate(jobs: Iterable[Job]) -> tuple[list[Job], int]:
         seen_url.add(url_key)
         unique.append(job)
     return unique, duplicates
+
+
+def canonical_url(value: str) -> str:
+    parsed = urlsplit(clean_text(value))
+    query = urlencode([(key, item) for key, item in parse_qsl(parsed.query, keep_blank_values=True)
+                       if not key.casefold().startswith("utm_") and key.casefold() not in {"source", "ref", "referrer"}])
+    path = parsed.path.rstrip("/") or "/"
+    return urlunsplit((parsed.scheme.casefold(), parsed.netloc.casefold(), path, query, ""))

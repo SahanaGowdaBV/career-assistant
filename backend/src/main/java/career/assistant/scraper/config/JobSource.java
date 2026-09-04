@@ -13,5 +13,6 @@ public enum JobSource {
     GREENHOUSE,
     LEVER,
     WORKABLE,
-    SMARTRECRUITERS
+    SMARTRECRUITERS,
+    MANUAL
 }
