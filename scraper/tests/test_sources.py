@@ -115,7 +115,20 @@ def test_amazon_uses_official_public_feed_and_stable_job_id():
 def test_official_source_configuration_is_allowlisted_and_includes_verified_additions():
     for source in SOURCES:
         validate_source(source)
-    assert {source["name"] for source in SOURCES} >= {"Amazon", "Accenture", "Ziina", "Careem"}
+    names = [source["name"] for source in SOURCES]
+    assert len(names) >= 80
+    assert len(names) == len(set(names))
+    assert set(names) >= {
+        "Amazon", "Accenture", "Ziina", "Careem", "Cisco", "PwC", "Autodesk", "Visa", "Unilever",
+        "NVIDIA", "Intel", "Salesforce", "Red Hat", "Microsoft", "Google", "IBM", "SAP",
+    }
+    active_workday_names = {"Cisco", "PwC", "Autodesk", "Visa", "Unilever", "NVIDIA", "Intel", "Salesforce", "Red Hat"}
+    workday_mncs = {source["name"]: source for source in SOURCES if source["name"] in active_workday_names}
+    assert all(source["career_url"].startswith("https://") for source in workday_mncs.values())
+    assert {source["site"] for source in workday_mncs.values()} == {
+        "Cisco_Careers", "Global_Experienced_Careers", "Ext", "Visa", "Unilever_Experienced_Professionals",
+        "NVIDIAExternalCareerSite", "External", "External_Career_Site", "Jobs",
+    }
     with pytest.raises(ValueError):
         validate_source({"kind": "official_html", "name": "Unsafe", "list_url": "http://private.invalid/jobs"})
     with pytest.raises(ValueError):

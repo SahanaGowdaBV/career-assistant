@@ -4,6 +4,7 @@ from career_scraper.filtering import (
     extract_experience,
     is_target_role,
     is_uae_location,
+    matched_priority_keywords,
     normalize,
 )
 from career_scraper.models import Job, RawJob
@@ -97,6 +98,12 @@ def test_security_false_positive_regressions():
         additional_target_titles=("Cloud Security Engineer",),
     )
     assert is_target_role("Platform Engineer")
+
+
+def test_priority_keywords_are_detected_case_insensitively():
+    assert matched_priority_keywords("Platform Engineer", "AWS, Kubernetes, Terraform and Grafana") == (
+        "AWS", "Kubernetes", "Terraform", "Grafana",
+    )
 
 
 def test_non_target_primary_functions_are_not_reclassified_by_target_suffixes():

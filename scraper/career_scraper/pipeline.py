@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import SOURCES, validate_source
-from .filtering import canonical_url, normalize
+from .filtering import canonical_url, matched_priority_keywords, normalize
 from .http import PublicHttpClient
 from .models import Job, SourceResult
 from .sources import FETCHERS
@@ -58,8 +58,18 @@ class Pipeline:
             started = time.monotonic()
             log_event("source_started", source=name, kind=kind)
             try:
+                if kind == "catalog_only":
+                    result.status = "catalog_only"
+                    continue
                 fetcher = FETCHERS[kind]
                 raw_jobs = fetcher(source, self.client)
+                # Skill matches are a ranking signal, so capped runs retain the
+                # most relevant UAE postings while the strict role/location/
+                # experience filters remain authoritative in normalize().
+                raw_jobs.sort(
+                    key=lambda raw: bool(matched_priority_keywords(raw.title, raw.description)),
+                    reverse=True,
+                )
                 result.discovered = len(raw_jobs)
                 for raw in raw_jobs:
                     if result.fetched >= self.max_candidates:
@@ -111,8 +121,13 @@ class Pipeline:
             "maxCandidates": self.max_candidates,
             "candidatesProcessed": self.candidates_processed,
             "sourcesAttempted": len(self.source_results),
+            "activeSources": sum(result.kind != "catalog_only" for result in self.source_results),
+            "catalogOnlySources": sum(result.kind == "catalog_only" for result in self.source_results),
             "sources": [result.safe_dict() for result in self.source_results],
             "jobsAccepted": len(jobs),
+            "jobsPriorityKeywordMatched": sum(
+                bool(matched_priority_keywords(job.title, job.description)) for job in jobs
+            ),
             "jobsExperienceUnknown": sum(job.experience_unknown for job in jobs),
             "jobsRejected": sum(result.rejected for result in self.source_results),
             "duplicatesWithinRun": self.duplicates,

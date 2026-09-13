@@ -8,6 +8,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
+from .config import PRIORITY_KEYWORDS
 from .models import Job, RawJob
 
 
@@ -83,6 +84,12 @@ def clean_text(value: object) -> str:
     if "<" in raw and ">" in raw:
         raw = BeautifulSoup(raw, "html.parser").get_text("\n", strip=True)
     return re.sub(r"[ \t]+", " ", re.sub(r"\r\n?", "\n", raw)).strip()
+
+
+def matched_priority_keywords(*values: object) -> tuple[str, ...]:
+    """Return configured skill keywords found in a posting's title/description."""
+    text = clean_text("\n".join(clean_text(value) for value in values)).casefold()
+    return tuple(keyword for keyword in PRIORITY_KEYWORDS if keyword.casefold() in text)
 
 
 def is_uae_location(location: str) -> bool:

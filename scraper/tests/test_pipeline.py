@@ -88,3 +88,17 @@ def test_pipeline_deduplicates_canonical_url_across_sources(monkeypatch):
 
     assert len(result) == 1
     assert pipeline.duplicates == 1
+
+
+def test_pipeline_reports_catalog_only_sources_without_contacting_them():
+    pipeline = Pipeline(sources=[{
+        "name": "Microsoft",
+        "kind": "catalog_only",
+        "career_url": "https://careers.microsoft.com/",
+    }], client=object(), max_results=5)
+
+    assert pipeline.run() == []
+    assert pipeline.source_results[0].status == "catalog_only"
+    summary = pipeline.summary(dry_run=True, jobs=[])
+    assert summary["activeSources"] == 0
+    assert summary["catalogOnlySources"] == 1

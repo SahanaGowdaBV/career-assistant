@@ -2,14 +2,22 @@
 
 This component reads only public candidate-facing ATS endpoints. It supports
 Workday, Oracle HCM, Greenhouse, Lever, and Workable without accounts, cookies, browser
-sessions, CAPTCHA handling, or private APIs.
+sessions, CAPTCHA handling, or private APIs. The source catalog contains 85
+Dubai/UAE employers: 32 active public ATS integrations and 53 catalog entries
+whose endpoints still need verification. A catalog entry is deliberately
+reported as `catalog_only` and is never contacted until an adapter is verified.
+Add or promote a source in `career_scraper/config.py` only after its official
+public ATS endpoint has been verified.
 
 The pipeline defaults to dry-run and processes at most 200 target-role
 candidates per run. A job must have an explicit UAE location, no excluded
 non-UAE location marker, and a target DevOps/SRE/cloud/platform title. Numeric
 experience requirements must overlap 4–8 years; jobs without a numeric range
 are retained with nullable experience fields and `experienceUnknown=true` for
-review. Live ingestion remains capped at 50 jobs.
+review. Search terms cover DevOps, DevSecOps, SRE, platform, cloud
+infrastructure, and infrastructure roles; matching descriptions are scanned for
+the configured AWS/Kubernetes/Terraform/Docker/CI/CD and observability keywords.
+Live ingestion remains capped at 50 jobs.
 
 ```bash
 python -m pip install -r scraper/requirements.txt
