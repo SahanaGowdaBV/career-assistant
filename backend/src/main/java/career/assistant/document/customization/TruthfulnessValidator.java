@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 public class TruthfulnessValidator {
 
     private static final Pattern VERIFIED_NUMERIC_CLAIM = Pattern.compile(
-            "(?i)(?:[$€£]|aed\\s*)?\\b\\d+(?:[,.]\\d+)*(?:%|\\+?\\s+years?|\\s*(?:million|billion|k|m))?"
+            "(?i)(?:[$€£]|aed\\s*)?\\b\\d+(?:[,.]\\d+)*(?:%|\\+?\\s+years?|\\s*(?:million|billion|k|m)\\b)?"
     );
 
     public void validate(ParsedResume master, ParsedResume candidate, String masterText, String candidateText) {
