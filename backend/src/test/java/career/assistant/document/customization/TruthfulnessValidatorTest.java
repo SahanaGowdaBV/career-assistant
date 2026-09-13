@@ -35,6 +35,25 @@ class TruthfulnessValidatorTest {
                 "AWS Docker 20%", "AWS Reduced cost by 30%."));
     }
 
+    @Test
+    void doesNotTreatTheFirstLetterOfAMonthAsAMillionSuffix() {
+        ParsedResume master = resume(List.of("AWS"), List.of("Built AWS systems."));
+        ParsedResume candidate = resume(List.of("AWS"), List.of("Built AWS systems."));
+
+        assertDoesNotThrow(() -> validator.validate(master, candidate,
+                "DevOps Engineer, May 2023 - Present. Built AWS systems.",
+                "DevOps Engineer, 2023 May - Present. Built AWS systems."));
+    }
+
+    @Test
+    void stillRejectsAnInventedMillionMetric() {
+        ParsedResume master = resume(List.of("AWS"), List.of("Processed 5M events."));
+        ParsedResume candidate = resume(List.of("AWS"), List.of("Processed 6M events."));
+
+        assertThrows(UntruthfulCustomizationException.class, () -> validator.validate(master, candidate,
+                "AWS Processed 5M events.", "AWS Processed 6M events."));
+    }
+
     private ParsedResume resume(List<String> skills, List<String> achievements) {
         return new ParsedResume(
                 "Jane Example",
