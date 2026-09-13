@@ -53,15 +53,18 @@ EXCLUDED_LOCATION_MARKERS = INDIA_MARKERS + (
 ROLE_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
-        r"^(?:senior\s+|lead\s+)?dev[\s-]?ops engineer\b",
-        r"^devsecops engineer\b",
-        r"^site reliability engineer\b",
-        r"^senior site reliability engineer\b",
-        r"^sre\b",
-        r"^(?:senior\s+|lead\s+)?platform engineer\b",
-        r"^cloud devops engineer\b",
-        r"^cloud infrastructure engineer\b",
-        r"^infrastructure engineer\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?dev[\s-]?ops(?:\s+(?:engineer|specialist|consultant|architect|lead))?\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?devsecops(?:\s+(?:engineer|specialist|consultant|architect|lead))?\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?site reliability(?:\s+(?:engineer|specialist|architect|lead))?\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?sre(?:\s+(?:engineer|lead))?\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?(?:cloud\s+)?platform(?:\s+(?:engineer|specialist|architect|lead)|\s+engineering\s+lead)\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?cloud(?:\s+(?:infrastructure|operations|systems?|platform))?\s+(?:engineer|specialist|architect|consultant|lead)\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?(?:aws|azure|cloud)\s+dev[\s-]?ops engineer\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?infrastructure(?:\s+(?:automation|cloud))?\s+(?:engineer|specialist|architect|consultant|lead)\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?platform reliability engineer\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?production engineer\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?kubernetes(?:\s+platform)?\s+engineer\b",
+        r"^(?:(?:senior|lead|staff|principal)\s+)?(?:cloud|devops|platform|infrastructure) solutions architect\b",
     )
 )
 
@@ -94,8 +97,9 @@ def matched_priority_keywords(*values: object) -> tuple[str, ...]:
 
 def is_uae_location(location: str) -> bool:
     text = clean_text(location).lower()
-    if any(marker in text for marker in EXCLUDED_LOCATION_MARKERS):
-        return False
+    # A multi-location vacancy remains eligible when it explicitly offers a UAE
+    # location. India-only and other non-UAE vacancies still have no UAE marker
+    # and remain excluded.
     return any(marker in text for marker in UAE_MARKERS)
 
 
@@ -111,6 +115,14 @@ def is_target_role(title: str, *, additional_target_titles: Iterable[str] = ()) 
     primary_title = normalize_primary_title(text)
     if any(pattern.fullmatch(primary_title) for pattern in ROLE_PATTERNS):
         return True
+    if re.fullmatch(r"(?:(?:senior|lead|staff|principal)\s+)?solutions architect", primary_title, re.I):
+        return bool(re.search(r"\b(?:cloud|dev[\s-]?ops|platform|infrastructure|kubernetes)\b", text, re.I))
+    if re.fullmatch(r"(?:(?:senior|lead|staff|principal)\s+)?engineer", primary_title, re.I):
+        return bool(re.search(
+            r"[-–—,:|/]\s*(?:cloud|dev[\s-]?ops|devsecops|platform|site reliability|sre|infrastructure)\b",
+            text,
+            re.I,
+        ))
     configured_titles = {
         normalize_primary_title(configured_title).casefold()
         for configured_title in additional_target_titles

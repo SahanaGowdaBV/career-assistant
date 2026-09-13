@@ -260,13 +260,26 @@ SOURCES = [
 SEARCH_TERMS = (
     "DevOps Engineer",
     "Senior DevOps Engineer",
+    "DevOps Lead",
+    "DevOps Specialist",
+    "DevOps Architect",
     "DevSecOps Engineer",
     "Site Reliability Engineer",
     "SRE",
     "Platform Engineer",
+    "Cloud Platform Engineer",
+    "Platform Reliability Engineer",
     "Cloud DevOps Engineer",
+    "Azure DevOps Engineer",
+    "Cloud Engineer",
+    "Cloud Operations Engineer",
     "Cloud Infrastructure Engineer",
     "Infrastructure Engineer",
+    "Infrastructure Automation Engineer",
+    "Production Engineer",
+    "Kubernetes Engineer",
+    "Cloud Architect",
+    "Solutions Architect",
 )
 
 PRIORITY_KEYWORDS = (

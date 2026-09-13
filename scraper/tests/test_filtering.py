@@ -36,21 +36,21 @@ def test_uae_filter_accepts_only_supported_locations():
     assert not is_uae_location("Global Remote")
 
 
-def test_india_exclusion_wins_even_if_uae_is_also_present():
-    assert not is_uae_location("Dubai, UAE / Bengaluru, India")
+def test_india_only_location_remains_excluded():
     job, reason = normalize(raw_job(location="Hyderabad, India"))
     assert job is None
     assert reason == "location"
 
 
-def test_other_non_uae_regions_are_rejected_even_when_mixed_with_uae():
+def test_multi_location_jobs_are_accepted_when_a_uae_option_is_explicit():
     for location in (
         "Dubai, UAE / Riyadh, Saudi Arabia",
         "UAE / Cairo, Egypt",
         "United Arab Emirates / Europe",
         "Dubai / United States",
+        "Dubai, UAE / Bengaluru, India",
     ):
-        assert not is_uae_location(location)
+        assert is_uae_location(location)
 
 
 def test_role_filter_is_strict_to_requested_role_families():
@@ -68,17 +68,27 @@ def test_role_filter_is_strict_to_requested_role_families():
         "Cloud DevOps Engineer",
         "Cloud Infrastructure Engineer",
         "Infrastructure Engineer",
+        "Cloud Engineer",
+        "Staff Cloud Engineer",
+        "Cloud Architect",
+        "Cloud Operations Engineer",
+        "DevOps Specialist",
+        "DevOps Architect",
+        "Azure DevOps Engineer",
+        "Infrastructure Automation Engineer",
+        "Platform Reliability Engineer",
+        "Production Engineer",
+        "Kubernetes Engineer",
+        "Cloud Solutions Architect",
+        "Senior Solutions Architect, Cloud Infrastructure and DevOps",
+        "Senior Engineer - DevOps",
+        "Senior Engineer, Platform Engineering and Architecture",
     ]
     for title in accepted:
         assert is_target_role(title), title
     for title in (
         "Lead SOC Engineer (DevOps)",
         "Cloud Security Engineer",
-        "Senior Engineer, Platform Engineering and Architecture",
-        "Senior Engineer - DevOps",
-        "Cloud Engineer",
-        "Cloud Architect",
-        "Staff Cloud Engineer",
         "Junior DevOps Engineer",
         "Software Engineer",
         "Cloud Account Executive",

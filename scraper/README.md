@@ -10,14 +10,17 @@ Add or promote a source in `career_scraper/config.py` only after its official
 public ATS endpoint has been verified.
 
 The pipeline defaults to dry-run and processes at most 200 target-role
-candidates per run. A job must have an explicit UAE location, no excluded
-non-UAE location marker, and a target DevOps/SRE/cloud/platform title. Numeric
-experience requirements must overlap 4–8 years; jobs without a numeric range
-are retained with nullable experience fields and `experienceUnknown=true` for
-review. Search terms cover DevOps, DevSecOps, SRE, platform, cloud
-infrastructure, and infrastructure roles; matching descriptions are scanned for
-the configured AWS/Kubernetes/Terraform/Docker/CI/CD and observability keywords.
-Live ingestion remains capped at 50 jobs.
+candidates per run. A job must have at least one explicit UAE location and a
+target DevOps, DevSecOps, SRE, platform, cloud, infrastructure, production,
+Kubernetes, or related solutions-architecture title. Multi-location vacancies
+remain eligible when the UAE is one of the advertised locations; India-only and
+other non-UAE vacancies remain excluded. Junior, graduate, trainee, and intern
+roles are excluded. Numeric experience requirements must overlap 4–8 years;
+jobs without a numeric range are retained with nullable experience fields and
+`experienceUnknown=true` for review. Matching descriptions are scanned for the
+configured AWS/Kubernetes/Terraform/Docker/CI/CD and observability keywords.
+Those keywords affect ranking, not basic eligibility. Live ingestion remains
+capped at 50 jobs.
 
 ```bash
 python -m pip install -r scraper/requirements.txt
