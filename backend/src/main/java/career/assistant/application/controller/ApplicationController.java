@@ -10,6 +10,7 @@ import career.assistant.application.service.ApplicationWorkflowService;import ja
  @PatchMapping("/{id}/review")public ApplicationWorkflowService.WorkflowResponse review(@PathVariable UUID id,@Valid @RequestBody ReviewRequest r){return service.review(id,r.approve(),r.reason());}
  @PatchMapping("/{id}/return-to-review")public ApplicationWorkflowService.WorkflowResponse returnToReview(@PathVariable UUID id,@RequestBody(required=false)ReturnRequest r){return service.returnToReview(id,r==null?null:r.reason());}
  @PatchMapping("/{id}/manually-applied")public ApplicationWorkflowService.WorkflowResponse manuallyApplied(@PathVariable UUID id,@Valid @RequestBody ManualAppliedRequest r){return service.markManuallyApplied(id,r.confirmed(),r.confirmation());}
+ @PatchMapping("/jobs/{jobId}/manually-applied")public ApplicationWorkflowService.WorkflowResponse jobManuallyApplied(@PathVariable UUID jobId,@Valid @RequestBody ManualAppliedRequest r){return service.markJobManuallyApplied(jobId,r.confirmed(),r.confirmation());}
  @PostMapping("/{id}/run")public ApplicationWorkflowService.WorkflowResponse run(@PathVariable UUID id){return service.run(id);}
  public record GenerateRequest(@NotNull UUID jobId,boolean lowConfidenceConfirmed){}public record ReviewRequest(boolean approve,String reason){}public record ReturnRequest(String reason){}public record ManualAppliedRequest(boolean confirmed,String confirmation){}
 }
