@@ -1,6 +1,12 @@
 name: UAE Scraper Ingestion
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'scraper/**'
+      - '.github/workflows/scraper.yml'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -46,9 +52,20 @@ jobs:
         env:
           CAREER_API_URL: ${{ secrets.CAREER_API_URL }}
           SCRAPER_INGESTION_TOKEN: ${{ secrets.SCRAPER_INGESTION_TOKEN }}
-          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_DRY_RUN: ${{ inputs.dry_run }}
+          LIVE_PUSH: ${{ contains(github.event.head_commit.message, '[scraper-live]') }}
           MAXIMUM_RESULTS: ${{ inputs.maximum_results || '50' }}
         run: |
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            DRY_RUN=false
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            DRY_RUN="${REQUESTED_DRY_RUN:-true}"
+          elif [ "$LIVE_PUSH" = "true" ]; then
+            DRY_RUN=false
+          else
+            DRY_RUN=true
+          fi
           case "$MAXIMUM_RESULTS" in
             ''|*[!0-9]*) echo "::error::Maximum accepted jobs must be an integer from 1 to 50"; exit 1 ;;
           esac

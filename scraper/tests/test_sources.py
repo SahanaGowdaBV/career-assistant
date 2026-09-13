@@ -121,7 +121,13 @@ def test_official_source_configuration_is_allowlisted_and_includes_verified_addi
     assert set(names) >= {
         "Amazon", "Accenture", "Ziina", "Careem", "Cisco", "PwC", "Autodesk", "Visa", "Unilever",
         "NVIDIA", "Intel", "Salesforce", "Red Hat", "Microsoft", "Google", "IBM", "SAP",
+        "Oracle", "Core42", "Presight", "Technology Innovation Institute", "du",
+        "Khazna Data Centers", "Emirates Group",
     }
+    active_phenom_names = {"G42", "Core42", "Presight", "Technology Innovation Institute"}
+    assert {
+        source["name"] for source in SOURCES if source["kind"] == "phenom"
+    } >= active_phenom_names
     active_workday_names = {"Cisco", "PwC", "Autodesk", "Visa", "Unilever", "NVIDIA", "Intel", "Salesforce", "Red Hat"}
     workday_mncs = {source["name"]: source for source in SOURCES if source["name"] in active_workday_names}
     assert all(source["career_url"].startswith("https://") for source in workday_mncs.values())

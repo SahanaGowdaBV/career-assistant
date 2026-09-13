@@ -2,8 +2,8 @@
 
 This component reads only public candidate-facing ATS endpoints. It supports
 Workday, Oracle HCM, Greenhouse, Lever, and Workable without accounts, cookies, browser
-sessions, CAPTCHA handling, or private APIs. The source catalog contains 85
-Dubai/UAE employers: 32 active public ATS integrations and 53 catalog entries
+sessions, CAPTCHA handling, or private APIs. The source catalog contains 92
+Dubai/UAE employers: 35 active public ATS integrations and 57 catalog entries
 whose endpoints still need verification. A catalog entry is deliberately
 reported as `catalog_only` and is never contacted until an adapter is verified.
 Add or promote a source in `career_scraper/config.py` only after its official

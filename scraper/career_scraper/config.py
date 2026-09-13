@@ -35,6 +35,27 @@ SOURCES = [
         "site_path": "global/en",
     },
     {
+        "kind": "phenom",
+        "name": "Core42",
+        "base_url": "https://careers.g42.ai",
+        "site_path": "core42/global/en",
+        "career_url": "https://careers.g42.ai/core42/global/en",
+    },
+    {
+        "kind": "phenom",
+        "name": "Presight",
+        "base_url": "https://careers.g42.ai",
+        "site_path": "presight/global/en",
+        "career_url": "https://careers.g42.ai/presight/global/en",
+    },
+    {
+        "kind": "phenom",
+        "name": "Technology Innovation Institute",
+        "base_url": "https://careers.tii.ae",
+        "site_path": "us/en",
+        "career_url": "https://careers.tii.ae/us/en",
+    },
+    {
         "kind": "oracle",
         "name": "AD Ports Group",
         "host": "fa-ewzx-saasfaprod1.fa.ocs.oraclecloud.com",
@@ -177,6 +198,10 @@ SOURCES = [
 
     # Career-page catalog entries. These are intentionally not scraped until
     # their public ATS contract is verified and an adapter is enabled.
+    {"kind": "catalog_only", "name": "Oracle", "career_url": "https://careers.oracle.com/"},
+    {"kind": "catalog_only", "name": "du", "career_url": "https://www.du.ae/careers-join-us"},
+    {"kind": "catalog_only", "name": "Khazna Data Centers", "career_url": "https://khaznadatacenters.com/careers/"},
+    {"kind": "catalog_only", "name": "Emirates Group", "career_url": "https://www.emiratesgroupcareers.com/search-and-apply/"},
     {"kind": "catalog_only", "name": "Microsoft", "career_url": "https://careers.microsoft.com/"},
     {"kind": "catalog_only", "name": "Google", "career_url": "https://www.google.com/about/careers/applications/"},
     {"kind": "catalog_only", "name": "IBM", "career_url": "https://www.ibm.com/careers"},
