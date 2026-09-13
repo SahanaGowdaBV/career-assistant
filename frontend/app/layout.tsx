@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import "./resume.css";
 import "./auth.css";
+import "./notice.css";
 import {AuthProvider} from "./auth-provider";
 
 export const metadata: Metadata = { title: "Career Assistant | UAE DevOps", description: "A safe, dry-run UAE job discovery and application workspace." };
