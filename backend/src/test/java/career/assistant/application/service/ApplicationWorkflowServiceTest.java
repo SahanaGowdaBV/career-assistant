@@ -207,6 +207,23 @@ class ApplicationWorkflowServiceTest {
         assertEquals(ApplicationStatus.MANUALLY_APPLIED, applied.status()); assertNotNull(applied.appliedAt()); verify(mail).sendVerifiedSuccessOnce(application, "95");
     }
 
+    @Test void anyPersistedJobCanBeRecordedAfterAConfirmedManualApplication() {
+        UUID jobId = UUID.randomUUID();
+        Job job = job(jobId);
+        when(jobs.findRequired(jobId)).thenReturn(job);
+        when(apps.findByJobId(jobId)).thenReturn(Optional.empty());
+        when(scoring.findOrScore(job)).thenReturn(score("HIGH", 72));
+        when(apps.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThrows(ResumeConflictException.class, () -> service.markJobManuallyApplied(jobId, false, null));
+        var applied = service.markJobManuallyApplied(jobId, true, "Confirmed from job row");
+
+        assertEquals(ApplicationStatus.MANUALLY_APPLIED, applied.status());
+        assertNotNull(applied.appliedAt());
+        verify(job).setStatus("MANUALLY_APPLIED");
+        verify(mail).sendVerifiedSuccessOnce(any(Application.class), org.mockito.ArgumentMatchers.eq("72"));
+    }
+
     private ApplicationWorkflowService service() {
         return new ApplicationWorkflowService(apps, jobs, scoring, resumes, letters, companies, adapters, mail,
                 false, true, 1, BigDecimal.valueOf(80), "boards.greenhouse.io,jobs.lever.co,apply.workable.com,jobs.ashbyhq.com");

@@ -5,11 +5,20 @@ export const workflowStatuses: Partial<Record<string, WorkflowStatus[]>> = {
   "Ready to Apply": ["READY_TO_APPLY"],
   "Auto Applied": ["AUTO_APPLIED"],
   "Failed Applications": ["FAILED"],
-  "Successfully Applied": ["AUTO_APPLIED", "MANUALLY_APPLIED"],
+  "Manually Applied": ["MANUALLY_APPLIED"],
 };
 
+export const jobStatusesForView: Partial<Record<string, string[]>> = {
+  "New Jobs": ["NEW", "HIGH_SCORE"],
+  "High Score Jobs": ["HIGH_SCORE"],
+};
+
+export function isActiveOpportunityStatus(status: string): boolean {
+  return !["MANUALLY_APPLIED", "AUTO_APPLIED", "REJECTED", "ARCHIVED"].includes(status);
+}
+
 export function applicationActions(status: WorkflowStatus): string[] {
-  if (status === "PENDING_REVIEW") return ["Regenerate résumé + cover letter", "Documents reviewed", "Reject"];
+  if (status === "PENDING_REVIEW") return ["Regenerate résumé + cover letter", "Documents reviewed", "Mark manually applied", "Reject"];
   if (status === "REJECTED") return ["Return to review"];
   if (status === "READY_TO_APPLY") return ["Return to review", "Mark manually applied"];
   return [];

@@ -180,6 +180,40 @@ public class ApplicationWorkflowService {
     }
 
     @Transactional
+    public WorkflowResponse markJobManuallyApplied(UUID jobId, boolean confirmed, String confirmation) {
+        if (!confirmed)
+            throw new ResumeConflictException("Explicit confirmation is required before marking a job as manually applied");
+        Job job = jobs.findRequired(jobId);
+        String owner = currentOwner();
+        Application application = owner == null
+                ? apps.findByJobId(jobId).orElse(null)
+                : apps.findByJobIdAndOwnerSubject(jobId, owner).orElse(null);
+        if (application != null && application.getStatus() == ApplicationStatus.MANUALLY_APPLIED)
+            return response(application, job, scoring.findOrScore(job));
+        if (application != null && application.getStatus() == ApplicationStatus.AUTO_APPLIED)
+            throw new ResumeConflictException("This job is already recorded as applied");
+        if (application == null) {
+            application = new Application();
+            application.setOwnerSubject(owner);
+            application.setJob(job);
+            application.setApplicationType(ApplicationType.MANUAL);
+            application.setApplicationUrl(job.getJobUrl());
+            application.setIdempotencyKey("job:" + jobId);
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        application.setStatus(ApplicationStatus.MANUALLY_APPLIED);
+        job.setStatus(ApplicationStatus.MANUALLY_APPLIED.name());
+        application.setAppliedAt(now);
+        application.setSubmittedAt(now);
+        application.setConfirmationId(confirmation == null || confirmation.isBlank() ? "MANUAL" : confirmation.trim());
+        application.setErrorMessage(null);
+        JobScore score = scoring.findOrScore(job);
+        Application saved = apps.save(application);
+        mail.sendVerifiedSuccessOnce(saved, String.valueOf(score.getScore()));
+        return response(saved, job, score);
+    }
+
+    @Transactional
     public WorkflowResponse run(UUID id) {
         Application application = required(id);
         Job job = application.getJob();
