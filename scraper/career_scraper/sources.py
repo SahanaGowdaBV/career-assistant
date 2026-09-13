@@ -8,7 +8,7 @@ from urllib.parse import quote, urlencode
 from bs4 import BeautifulSoup
 
 from .config import SEARCH_TERMS
-from .filtering import clean_text, is_target_role
+from .filtering import clean_text, is_target_role, is_uae_location
 from .http import PublicHttpClient
 from .models import RawJob
 
@@ -147,15 +147,53 @@ def _workday_url(source: dict[str, Any], external_path: str) -> str:
     return f"https://{source['host']}{external_path}"
 
 
+def _workday_uae_facets(
+    source: dict[str, Any],
+    client: PublicHttpClient,
+    endpoint: str,
+) -> dict[str, Any] | None:
+    configured = source.get("facets")
+    if isinstance(configured, dict) and configured:
+        return configured
+
+    payload = client.post_json(endpoint, {
+        "appliedFacets": {},
+        "limit": 1,
+        "offset": 0,
+        "searchText": "",
+    })
+    facets = payload.get("facets", []) if isinstance(payload, dict) else []
+    for facet in facets:
+        if not isinstance(facet, dict):
+            continue
+        parameter = clean_text(facet.get("facetParameter"))
+        if not parameter:
+            continue
+        for value in facet.get("values", []) or []:
+            if not isinstance(value, dict):
+                continue
+            descriptor = clean_text(value.get("descriptor") or value.get("name"))
+            identifier = clean_text(value.get("id"))
+            if identifier and is_uae_location(descriptor):
+                return {parameter: [identifier]}
+    return None
+
+
 def fetch_workday(source: dict[str, Any], client: PublicHttpClient) -> list[RawJob]:
     endpoint = f"https://{source['host']}/wday/cxs/{source['tenant']}/{source['site']}/jobs"
+    uae_facets = _workday_uae_facets(source, client, endpoint)
+    # An unfiltered global result set can hit the per-source cap before a UAE
+    # vacancy is reached. If Workday exposes no UAE country facet, this tenant
+    # currently has no UAE postings to enumerate.
+    if uae_facets is None:
+        return []
     output: list[RawJob] = []
     seen: set[str] = set()
     for term in SEARCH_TERMS:
         offset = 0
         for _page in range(3):
             payload = client.post_json(endpoint, {
-                "appliedFacets": source.get("facets", {}),
+                "appliedFacets": uae_facets,
                 "limit": 20,
                 "offset": offset,
                 "searchText": term,
@@ -165,6 +203,9 @@ def fetch_workday(source: dict[str, Any], client: PublicHttpClient) -> list[RawJ
                 break
             for summary in summaries:
                 if not isinstance(summary, dict) or not is_target_role(summary.get("title", "")):
+                    continue
+                summary_location = clean_text(summary.get("locationsText"))
+                if summary_location and not is_uae_location(summary_location):
                     continue
                 external_path = clean_text(summary.get("externalPath"))
                 key = external_path or clean_text(summary.get("title"))

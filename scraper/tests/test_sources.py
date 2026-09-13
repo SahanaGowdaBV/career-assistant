@@ -2,7 +2,7 @@ from career_scraper.filtering import deduplicate, normalize
 import pytest
 
 from career_scraper.config import SOURCES, validate_source
-from career_scraper.sources import fetch_amazon, fetch_ashby
+from career_scraper.sources import fetch_amazon, fetch_ashby, fetch_workday
 
 
 class FakeClient:
@@ -110,6 +110,83 @@ def test_amazon_uses_official_public_feed_and_stable_job_id():
     assert {job.source_id for job in jobs} == {"amazon-amazon-123"}
     assert jobs[0].url == "https://www.amazon.jobs/en/jobs/amazon-123/cloud-infrastructure-engineer"
     assert "5+ years" in jobs[0].description
+
+
+class WorkdayClient:
+    def __init__(self):
+        self.search_payloads = []
+
+    def post_json(self, _url, payload):
+        if payload["searchText"] == "":
+            return {"facets": [{
+                "facetParameter": "locationCountry",
+                "values": [
+                    {"descriptor": "India", "id": "india-id"},
+                    {"descriptor": "United Arab Emirates", "id": "uae-id"},
+                ],
+            }]}
+        self.search_payloads.append(payload)
+        if payload["searchText"] != "Cloud Engineer":
+            return {"total": 0, "jobPostings": []}
+        return {
+            "total": 2,
+            "jobPostings": [
+                {
+                    "title": "Cloud Engineer",
+                    "locationsText": "Dubai, United Arab Emirates",
+                    "externalPath": "/job/Dubai/Cloud-Engineer_1",
+                    "bulletFields": ["REQ-1"],
+                },
+                {
+                    "title": "Cloud Engineer",
+                    "locationsText": "Bengaluru, India",
+                    "externalPath": "/job/Bengaluru/Cloud-Engineer_2",
+                    "bulletFields": ["REQ-2"],
+                },
+            ],
+        }
+
+    def get_json(self, url):
+        assert url.endswith("/job/Dubai/Cloud-Engineer_1")
+        return {"jobPostingInfo": {
+            "title": "Cloud Engineer",
+            "location": "Dubai, United Arab Emirates",
+            "jobDescription": "Five years of AWS platform experience.",
+            "externalPath": "/job/Dubai/Cloud-Engineer_1",
+        }}
+
+
+def test_workday_discovers_and_applies_uae_country_facet_before_enumeration():
+    client = WorkdayClient()
+    jobs = fetch_workday({
+        "kind": "workday",
+        "name": "Example",
+        "host": "example.wd1.myworkdayjobs.com",
+        "tenant": "example",
+        "site": "External",
+    }, client)
+
+    assert len(jobs) == 1
+    assert jobs[0].location == "Dubai, United Arab Emirates"
+    assert all(payload["appliedFacets"] == {"locationCountry": ["uae-id"]} for payload in client.search_payloads)
+
+
+def test_workday_skips_global_enumeration_when_no_uae_country_facet_exists():
+    class NoUaeWorkdayClient:
+        def post_json(self, _url, payload):
+            assert payload["searchText"] == ""
+            return {"facets": [{
+                "facetParameter": "locationCountry",
+                "values": [{"descriptor": "India", "id": "india-id"}],
+            }]}
+
+    assert fetch_workday({
+        "kind": "workday",
+        "name": "Example",
+        "host": "example.wd1.myworkdayjobs.com",
+        "tenant": "example",
+        "site": "External",
+    }, NoUaeWorkdayClient()) == []
 
 
 def test_official_source_configuration_is_allowlisted_and_includes_verified_additions():

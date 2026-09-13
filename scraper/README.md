@@ -22,6 +22,11 @@ configured AWS/Kubernetes/Terraform/Docker/CI/CD and observability keywords.
 Those keywords affect ranking, not basic eligibility. Live ingestion remains
 capped at 50 jobs.
 
+For Workday sources, the scraper first discovers the public UAE country facet
+and applies it before paging or enforcing the per-source candidate cap. This
+prevents high-volume global employers from crowding UAE vacancies out of the
+scan.
+
 ```bash
 python -m pip install -r scraper/requirements.txt
 python scraper/run.py --dry-run --max-results 200 --max-candidates 200 \
