@@ -125,6 +125,18 @@ class Pipeline:
             "catalogOnlySources": sum(result.kind == "catalog_only" for result in self.source_results),
             "sources": [result.safe_dict() for result in self.source_results],
             "jobsAccepted": len(jobs),
+            "acceptedJobs": [
+                {
+                    "title": job.title,
+                    "company": job.company,
+                    "location": job.location,
+                    "source": job.source,
+                    "sourceId": job.source_id,
+                    "url": job.url,
+                    "priorityKeywords": list(matched_priority_keywords(job.title, job.description)),
+                }
+                for job in jobs
+            ],
             "jobsPriorityKeywordMatched": sum(
                 bool(matched_priority_keywords(job.title, job.description)) for job in jobs
             ),

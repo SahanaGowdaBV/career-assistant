@@ -102,3 +102,37 @@ def test_pipeline_reports_catalog_only_sources_without_contacting_them():
     summary = pipeline.summary(dry_run=True, jobs=[])
     assert summary["activeSources"] == 0
     assert summary["catalogOnlySources"] == 1
+
+
+def test_summary_includes_public_accepted_job_evidence(monkeypatch):
+    def evidence_job(source, _client):
+        return [RawJob(
+            title="Senior Platform Engineer",
+            company=source["name"],
+            location="Dubai, United Arab Emirates",
+            description="Requires 5 years of professional experience.",
+            source="COMPANY_CAREER_PAGE",
+            source_id="evidence-1",
+            url="https://jobs.example.test/evidence-1",
+        )]
+
+    monkeypatch.setitem(source_module.FETCHERS, "ashby", evidence_job)
+    monkeypatch.setattr("career_scraper.pipeline.FETCHERS", source_module.FETCHERS)
+    pipeline = Pipeline(
+        sources=[{"name": "Example", "kind": "ashby", "slug": "example"}],
+        client=object(),
+        max_results=5,
+    )
+
+    jobs = pipeline.run()
+    evidence = pipeline.summary(dry_run=True, jobs=jobs)["acceptedJobs"]
+
+    assert evidence == [{
+        "title": "Senior Platform Engineer",
+        "company": "Example",
+        "location": "Dubai, United Arab Emirates",
+        "source": "COMPANY_CAREER_PAGE",
+        "sourceId": "evidence-1",
+        "url": "https://jobs.example.test/evidence-1",
+        "priorityKeywords": [],
+    }]
