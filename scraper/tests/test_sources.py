@@ -89,9 +89,14 @@ def test_target_infrastructure_posting_preserves_official_fields():
 
 
 class AmazonClient:
+    def __init__(self):
+        self.params = []
+
     def get_json(self, url, **kwargs):
         assert url == "https://www.amazon.jobs/en/search.json"
         assert kwargs["params"]["loc_query"] == "United Arab Emirates"
+        assert kwargs["params"]["base_query"] == ""
+        self.params.append(kwargs["params"])
         return {"jobs": [{
             "id": "amazon-123",
             "title": "Cloud Infrastructure Engineer",
@@ -105,8 +110,10 @@ class AmazonClient:
 
 
 def test_amazon_uses_official_public_feed_and_stable_job_id():
-    jobs = fetch_amazon({"kind": "amazon", "name": "Amazon"}, AmazonClient())
+    client = AmazonClient()
+    jobs = fetch_amazon({"kind": "amazon", "name": "Amazon"}, client)
     assert jobs
+    assert len(client.params) == 1
     assert {job.source_id for job in jobs} == {"amazon-amazon-123"}
     assert jobs[0].url == "https://www.amazon.jobs/en/jobs/amazon-123/cloud-infrastructure-engineer"
     assert "5+ years" in jobs[0].description
@@ -117,7 +124,7 @@ class WorkdayClient:
         self.search_payloads = []
 
     def post_json(self, _url, payload):
-        if payload["searchText"] == "":
+        if payload["limit"] == 1:
             return {"facets": [{
                 "facetParameter": "locationCountry",
                 "values": [
@@ -126,8 +133,6 @@ class WorkdayClient:
                 ],
             }]}
         self.search_payloads.append(payload)
-        if payload["searchText"] != "Cloud Engineer":
-            return {"total": 0, "jobPostings": []}
         return {
             "total": 2,
             "jobPostings": [
@@ -175,6 +180,7 @@ def test_workday_discovers_and_applies_uae_country_facet_before_enumeration():
     assert len(jobs) == 2
     assert {job.location for job in jobs} == {"Dubai, United Arab Emirates", "Bengaluru, India"}
     assert all(payload["appliedFacets"] == {"locationCountry": ["uae-id"]} for payload in client.search_payloads)
+    assert [payload["searchText"] for payload in client.search_payloads] == [""]
 
 
 def test_workday_skips_global_enumeration_when_no_uae_country_facet_exists():
