@@ -111,6 +111,7 @@ def fetch_amazon(source: dict[str, Any], client: PublicHttpClient) -> list[RawJo
             params={
                 "base_query": "",
                 "loc_query": "United Arab Emirates",
+                "country": "ARE",
                 "result_limit": 100,
                 "offset": offset,
             },

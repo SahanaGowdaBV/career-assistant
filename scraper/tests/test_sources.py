@@ -95,6 +95,7 @@ class AmazonClient:
     def get_json(self, url, **kwargs):
         assert url == "https://www.amazon.jobs/en/search.json"
         assert kwargs["params"]["loc_query"] == "United Arab Emirates"
+        assert kwargs["params"]["country"] == "ARE"
         assert kwargs["params"]["base_query"] == ""
         self.params.append(kwargs["params"])
         return {"jobs": [{
