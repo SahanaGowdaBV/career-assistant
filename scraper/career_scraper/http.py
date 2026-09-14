@@ -57,8 +57,20 @@ class PublicHttpClient:
         response.raise_for_status()
         return response.json()
 
-    def post(self, url: str, payload: dict[str, Any], *, headers: dict[str, str] | None = None) -> Any:
+    def post(
+        self,
+        url: str,
+        payload: dict[str, Any],
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> Any:
         self._wait()
-        response = self.session.post(url, json=payload, headers=headers, timeout=self.timeout)
+        response = self.session.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=self.timeout if timeout is None else timeout,
+        )
         response.raise_for_status()
         return response.json()

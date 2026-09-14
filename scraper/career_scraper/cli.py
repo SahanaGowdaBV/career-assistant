@@ -19,6 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-results", type=int, default=50)
     parser.add_argument("--max-candidates", type=int, default=10000)
     parser.add_argument("--timeout", type=float, default=15.0)
+    parser.add_argument("--ingestion-timeout", type=float, default=120.0)
     parser.add_argument("--retries", type=int, default=2)
     parser.add_argument("--rate-limit-seconds", type=float, default=0.25)
     parser.add_argument("--api-url", default=os.environ.get("CAREER_API_URL"))
@@ -41,6 +42,8 @@ def main(argv: list[str] | None = None) -> int:
     ingestion_token = None
     if args.max_results < 1 or args.max_results > 50:
         raise SystemExit("--max-results must be between 1 and 50")
+    if args.ingestion_timeout <= 0:
+        raise SystemExit("--ingestion-timeout must be greater than zero")
     if not dry_run:
         if not args.api_url:
             raise SystemExit("CAREER_API_URL or --api-url is required for --live")
@@ -73,11 +76,22 @@ def main(argv: list[str] | None = None) -> int:
     payload = {"dryRun": dry_run, "jobs": [job.to_ingestion_dict() for job in jobs], "sourceRuns": source_runs}
     ingestion = None
     if not dry_run:
-        response = client.post(
-            ingestion_url(args.api_url),
-            payload,
-            headers={"X-Scraper-Ingestion-Token": ingestion_token},
-        )
+        try:
+            response = client.post(
+                ingestion_url(args.api_url),
+                payload,
+                headers={"X-Scraper-Ingestion-Token": ingestion_token},
+                timeout=args.ingestion_timeout,
+            )
+        except Exception as exc:
+            ingestion = {"status": "failed", "errorType": type(exc).__name__}
+            log_event("ingestion_failed", error_type=type(exc).__name__)
+            summary = pipeline.summary(dry_run=dry_run, jobs=jobs, ingestion=ingestion)
+            pipeline.write_json(args.summary_file, summary)
+            if args.output_file:
+                pipeline.write_json(args.output_file, payload)
+            print(json.dumps(summary, indent=2, sort_keys=True))
+            raise
         ingestion = {
             "accepted": int(response.get("accepted", 0)),
             "rejected": int(response.get("rejected", 0)),
@@ -85,8 +99,6 @@ def main(argv: list[str] | None = None) -> int:
             "saved": len(response.get("jobs", []) or []),
         } if isinstance(response, dict) else {"responseType": type(response).__name__}
         log_event("ingestion_finished", **ingestion)
-    elif not dry_run:
-        ingestion = {"accepted": 0, "rejected": 0, "duplicates": 0, "saved": 0}
 
     summary = pipeline.summary(dry_run=dry_run, jobs=jobs, ingestion=ingestion)
     pipeline.write_json(args.summary_file, summary)

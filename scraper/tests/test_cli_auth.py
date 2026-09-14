@@ -30,7 +30,7 @@ class FakePipeline:
 
 class FakeHttpClient:
     def __init__(self, **_: Any):
-        self.posts: list[tuple[str, dict[str, Any], dict[str, str] | None]] = []
+        self.posts: list[tuple[str, dict[str, Any], dict[str, str] | None, float | None]] = []
 
     def post(
         self,
@@ -38,8 +38,9 @@ class FakeHttpClient:
         payload: dict[str, Any],
         *,
         headers: dict[str, str] | None = None,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
-        self.posts.append((url, payload, headers))
+        self.posts.append((url, payload, headers, timeout))
         return {"accepted": 1, "rejected": 0, "duplicates": 0, "jobs": [{}]}
 
 
@@ -63,10 +64,11 @@ def test_live_ingestion_sends_configured_authentication_header(
     assert cli.main(["--live", "--summary-file", str(tmp_path / "summary.json")]) == 0
 
     assert len(client.posts) == 1
-    url, payload, headers = client.posts[0]
+    url, payload, headers, timeout = client.posts[0]
     assert url == "https://backend.example/api/scraper/ingest"
     assert payload["dryRun"] is False
     assert headers == {"X-Scraper-Ingestion-Token": "test-ingestion-token"}
+    assert timeout == 120.0
     captured = capsys.readouterr()
     assert "test-ingestion-token" not in captured.out
     assert "test-ingestion-token" not in captured.err
