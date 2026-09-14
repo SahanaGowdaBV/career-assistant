@@ -28,12 +28,12 @@ class Pipeline:
         sources: list[dict[str, Any]] | None = None,
         client: PublicHttpClient | None = None,
         max_results: int = 50,
-        max_candidates: int = 200,
+        max_candidates: int = 10000,
     ):
         if max_results < 1 or max_results > 200:
             raise ValueError("max_results must be between 1 and 200")
-        if max_candidates < 1 or max_candidates > 200:
-            raise ValueError("max_candidates must be between 1 and 200")
+        if max_candidates < 1 or max_candidates > 10000:
+            raise ValueError("max_candidates must be between 1 and 10000")
         self.sources = sources if sources is not None else SOURCES
         for source in self.sources:
             validate_source(source)
@@ -50,26 +50,17 @@ class Pipeline:
         seen_source: set[tuple[str, str]] = set()
         seen_url: set[str] = set()
         for source in self.sources:
-            if len(accepted) >= self.max_results:
-                break
             name, kind = str(source.get("name") or "unknown"), str(source.get("kind") or "unknown")
-            result = SourceResult(source=name, kind=kind)
+            result = SourceResult(source=name, kind=kind, career_url=source.get("career_url") or source.get("list_url"))
             self.source_results.append(result)
             started = time.monotonic()
             log_event("source_started", source=name, kind=kind)
             try:
-                if kind == "catalog_only":
-                    result.status = "catalog_only"
+                if kind in {"catalog_only", "link_only"}:
+                    result.status = kind
                     continue
                 fetcher = FETCHERS[kind]
                 raw_jobs = fetcher(source, self.client)
-                # Skill matches are a ranking signal, so capped runs retain the
-                # most relevant UAE postings while the strict role/location/
-                # experience filters remain authoritative in normalize().
-                raw_jobs.sort(
-                    key=lambda raw: bool(matched_priority_keywords(raw.title, raw.description)),
-                    reverse=True,
-                )
                 result.discovered = len(raw_jobs)
                 for raw in raw_jobs:
                     if result.fetched >= self.max_candidates:
@@ -89,10 +80,9 @@ class Pipeline:
                         continue
                     seen_source.add(key)
                     seen_url.add(url_key)
-                    accepted.append(job)
                     result.accepted += 1
-                    if len(accepted) >= self.max_results:
-                        break
+                    if len(accepted) < self.max_results:
+                        accepted.append(job)
                 result.status = "ok"
             except Exception as exc:  # source isolation is intentional
                 result.status = "failed"
@@ -121,8 +111,9 @@ class Pipeline:
             "maxCandidates": self.max_candidates,
             "candidatesProcessed": self.candidates_processed,
             "sourcesAttempted": len(self.source_results),
-            "activeSources": sum(result.kind != "catalog_only" for result in self.source_results),
+            "activeSources": sum(result.kind not in {"catalog_only", "link_only"} for result in self.source_results),
             "catalogOnlySources": sum(result.kind == "catalog_only" for result in self.source_results),
+            "linkOnlySources": sum(result.kind == "link_only" for result in self.source_results),
             "sources": [result.safe_dict() for result in self.source_results],
             "jobsAccepted": len(jobs),
             "acceptedJobs": [

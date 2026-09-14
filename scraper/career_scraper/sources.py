@@ -8,7 +8,7 @@ from urllib.parse import quote, urlencode
 from bs4 import BeautifulSoup
 
 from .config import SEARCH_TERMS
-from .filtering import clean_text, is_target_role, is_uae_location
+from .filtering import clean_text, is_uae_location
 from .http import PublicHttpClient
 from .models import RawJob
 
@@ -25,7 +25,7 @@ def fetch_greenhouse(source: dict[str, Any], client: PublicHttpClient) -> list[R
     jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
     output = []
     for item in jobs:
-        if not isinstance(item, dict) or not item.get("id") or not is_target_role(item.get("title", "")):
+        if not isinstance(item, dict) or not item.get("id"):
             continue
         location = _location_name(item.get("location"))
         if not location and isinstance(item.get("offices"), list):
@@ -48,7 +48,7 @@ def fetch_lever(source: dict[str, Any], client: PublicHttpClient) -> list[RawJob
     payload = client.get_json(f"https://api.lever.co/v0/postings/{quote(slug)}?mode=json")
     output = []
     for item in payload if isinstance(payload, list) else []:
-        if not isinstance(item, dict) or not item.get("id") or not is_target_role(item.get("text", "")):
+        if not isinstance(item, dict) or not item.get("id"):
             continue
         categories = item.get("categories") if isinstance(item.get("categories"), dict) else {}
         list_text = "\n".join(
@@ -106,36 +106,46 @@ def fetch_amazon(source: dict[str, Any], client: PublicHttpClient) -> list[RawJo
     output: list[RawJob] = []
     seen: set[str] = set()
     for term in SEARCH_TERMS:
-        payload = client.get_json(
-            "https://www.amazon.jobs/en/search.json",
-            params={
-                "base_query": term,
-                "loc_query": "United Arab Emirates",
-                "result_limit": 100,
-            },
-        )
-        for item in payload.get("jobs", []) if isinstance(payload, dict) else []:
-            if not isinstance(item, dict) or not item.get("id") or not is_target_role(item.get("title", "")):
-                continue
-            identifier = clean_text(item["id"])
-            if identifier in seen:
-                continue
-            seen.add(identifier)
-            path = clean_text(item.get("job_path"))
-            output.append(RawJob(
-                title=clean_text(item.get("title")),
-                company=source["name"],
-                location=clean_text(item.get("location")),
-                description="\n".join(filter(None, (
-                    clean_text(item.get("description")),
-                    clean_text(item.get("basic_qualifications")),
-                    clean_text(item.get("preferred_qualifications")),
-                ))),
-                source="COMPANY_CAREER_PAGE",
-                source_id=f"amazon-{identifier}",
-                url=path if path.startswith("http") else f"https://www.amazon.jobs{path}",
-                posted_at=item.get("posted_date"),
-            ))
+        offset = 0
+        while True:
+            payload = client.get_json(
+                "https://www.amazon.jobs/en/search.json",
+                params={
+                    "base_query": term,
+                    "loc_query": "United Arab Emirates",
+                    "result_limit": 100,
+                    "offset": offset,
+                },
+            )
+            page_jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
+            for item in page_jobs:
+                if not isinstance(item, dict) or not item.get("id"):
+                    continue
+                identifier = clean_text(item["id"])
+                if identifier in seen:
+                    continue
+                seen.add(identifier)
+                path = clean_text(item.get("job_path"))
+                output.append(RawJob(
+                    title=clean_text(item.get("title")),
+                    company=source["name"],
+                    location=clean_text(item.get("location")),
+                    description="\n".join(filter(None, (
+                        clean_text(item.get("description")),
+                        clean_text(item.get("basic_qualifications")),
+                        clean_text(item.get("preferred_qualifications")),
+                    ))),
+                    source="COMPANY_CAREER_PAGE",
+                    source_id=f"amazon-{identifier}",
+                    url=path if path.startswith("http") else f"https://www.amazon.jobs{path}",
+                    posted_at=item.get("posted_date"),
+                ))
+            if not page_jobs or len(page_jobs) < 100:
+                break
+            total = int(payload.get("hits") or payload.get("total") or 0) if isinstance(payload, dict) else 0
+            offset += len(page_jobs)
+            if total and offset >= total:
+                break
     return output
 
 
@@ -191,7 +201,7 @@ def fetch_workday(source: dict[str, Any], client: PublicHttpClient) -> list[RawJ
     seen: set[str] = set()
     for term in SEARCH_TERMS:
         offset = 0
-        for _page in range(3):
+        while True:
             payload = client.post_json(endpoint, {
                 "appliedFacets": uae_facets,
                 "limit": 20,
@@ -202,10 +212,7 @@ def fetch_workday(source: dict[str, Any], client: PublicHttpClient) -> list[RawJ
             if not summaries:
                 break
             for summary in summaries:
-                if not isinstance(summary, dict) or not is_target_role(summary.get("title", "")):
-                    continue
-                summary_location = clean_text(summary.get("locationsText"))
-                if summary_location and not is_uae_location(summary_location):
+                if not isinstance(summary, dict):
                     continue
                 external_path = clean_text(summary.get("externalPath"))
                 key = external_path or clean_text(summary.get("title"))
@@ -247,38 +254,47 @@ def fetch_oracle(source: dict[str, Any], client: PublicHttpClient) -> list[RawJo
     seen: set[str] = set()
     expand = "requisitionList.workLocation,requisitionList.otherWorkLocations,requisitionList.secondaryLocations"
     for term in SEARCH_TERMS:
-        finder = f"findReqs;siteNumber={source['site']},limit=25,offset=0,keyword={term}"
-        query = urlencode({"onlyData": "true", "expand": expand, "finder": finder})
-        payload = client.get_json(f"https://{source['host']}/hcmRestApi/resources/latest/recruitingCEJobRequisitions?{query}")
-        for item in _iter_oracle_requisitions(payload):
-            identifier = clean_text(item.get("Id"))
-            if not identifier or identifier in seen or not is_target_role(item.get("Title", "")):
-                continue
-            seen.add(identifier)
-            detail_payload = client.get_json(
-                f"https://{source['host']}/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails",
-                params={
-                    "onlyData": "true",
-                    "finder": f"ById;Id={identifier},siteNumber={source['site']}",
-                },
-            )
-            detail_items = detail_payload.get("items", []) if isinstance(detail_payload, dict) else []
-            detail = detail_items[0] if detail_items and isinstance(detail_items[0], dict) else item
-            work_locations = item.get("workLocation") if isinstance(item.get("workLocation"), list) else []
-            location = clean_text(detail.get("PrimaryLocation") or item.get("PrimaryLocation") or (work_locations[0].get("LocationName") if work_locations else ""))
-            description = "\n".join(clean_text(detail.get(field)) for field in (
-                "ExternalDescriptionStr", "ShortDescriptionStr", "ExternalResponsibilitiesStr", "ExternalQualificationsStr"
-            ) if detail.get(field))
-            output.append(RawJob(
-                title=clean_text(detail.get("Title") or item.get("Title")),
-                company=source["name"],
-                location=location,
-                description=description,
-                source="ORACLE_HCM",
-                source_id=f"{source['host']}-{source['site']}-{identifier}",
-                url=f"https://{source['host']}/hcmUI/CandidateExperience/en/sites/{source['site']}/job/{identifier}",
-                posted_at=detail.get("ExternalPostedStartDate") or item.get("PostedDate"),
-            ))
+        offset = 0
+        while True:
+            finder = f"findReqs;siteNumber={source['site']},limit=25,offset={offset},keyword={term}"
+            query = urlencode({"onlyData": "true", "expand": expand, "finder": finder})
+            payload = client.get_json(f"https://{source['host']}/hcmRestApi/resources/latest/recruitingCEJobRequisitions?{query}")
+            page_items = list(_iter_oracle_requisitions(payload))
+            for item in page_items:
+                identifier = clean_text(item.get("Id"))
+                if not identifier or identifier in seen:
+                    continue
+                seen.add(identifier)
+                detail_payload = client.get_json(
+                    f"https://{source['host']}/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails",
+                    params={
+                        "onlyData": "true",
+                        "finder": f"ById;Id={identifier},siteNumber={source['site']}",
+                    },
+                )
+                detail_items = detail_payload.get("items", []) if isinstance(detail_payload, dict) else []
+                detail = detail_items[0] if detail_items and isinstance(detail_items[0], dict) else item
+                work_locations = item.get("workLocation") if isinstance(item.get("workLocation"), list) else []
+                location = clean_text(detail.get("PrimaryLocation") or item.get("PrimaryLocation") or (work_locations[0].get("LocationName") if work_locations else ""))
+                description = "\n".join(clean_text(detail.get(field)) for field in (
+                    "ExternalDescriptionStr", "ShortDescriptionStr", "ExternalResponsibilitiesStr", "ExternalQualificationsStr"
+                ) if detail.get(field))
+                output.append(RawJob(
+                    title=clean_text(detail.get("Title") or item.get("Title")),
+                    company=source["name"],
+                    location=location,
+                    description=description,
+                    source="ORACLE_HCM",
+                    source_id=f"{source['host']}-{source['site']}-{identifier}",
+                    url=f"https://{source['host']}/hcmUI/CandidateExperience/en/sites/{source['site']}/job/{identifier}",
+                    posted_at=detail.get("ExternalPostedStartDate") or item.get("PostedDate"),
+                ))
+            if len(page_items) < 25:
+                break
+            offset += len(page_items)
+            total = int(payload.get("totalResults") or payload.get("count") or 0) if isinstance(payload, dict) else 0
+            if total and offset >= total:
+                break
     return output
 
 
@@ -293,7 +309,7 @@ def fetch_workable(source: dict[str, Any], client: PublicHttpClient) -> list[Raw
     entries = payload.get("jobs", []) if isinstance(payload, dict) else []
     output = []
     for item in entries:
-        if not isinstance(item, dict) or not item.get("shortcode") or not is_target_role(item.get("title", "")):
+        if not isinstance(item, dict) or not item.get("shortcode"):
             continue
         location_parts = [item.get("city"), item.get("state"), item.get("country")]
         location = ", ".join(clean_text(part) for part in location_parts if clean_text(part))
@@ -335,7 +351,7 @@ def fetch_smartrecruiters(source: dict[str, Any], client: PublicHttpClient) -> l
     slug = source["slug"]
     output: list[RawJob] = []
     offset = 0
-    while offset < 500:
+    while True:
         payload = client.get_json(
             f"https://api.smartrecruiters.com/v1/companies/{quote(slug)}/postings",
             params={"limit": 100, "offset": offset},
@@ -344,7 +360,7 @@ def fetch_smartrecruiters(source: dict[str, Any], client: PublicHttpClient) -> l
         if not summaries:
             break
         for summary in summaries:
-            if not isinstance(summary, dict) or not summary.get("id") or not is_target_role(summary.get("name", "")):
+            if not isinstance(summary, dict) or not summary.get("id"):
                 continue
             identifier = str(summary["id"])
             detail = client.get_json(f"https://api.smartrecruiters.com/v1/companies/{quote(slug)}/postings/{quote(identifier)}")
@@ -396,35 +412,43 @@ def fetch_phenom(source: dict[str, Any], client: PublicHttpClient) -> list[RawJo
     output: list[RawJob] = []
     seen: set[str] = set()
     for term in SEARCH_TERMS:
-        page = client.get_text(f"{base_url}/{site_path}/search-results", params={"keywords": term})
-        for item in _phenom_jobs(_phenom_ddo(page)):
-            if not isinstance(item, dict) or not is_target_role(item.get("title", "")):
-                continue
-            identifier = clean_text(item.get("jobId") or item.get("reqId") or item.get("jobSeqNo"))
-            if not identifier or identifier in seen:
-                continue
-            seen.add(identifier)
-            job_url = f"{base_url}/{site_path}/job/{quote(identifier)}"
-            detail_ddo = _phenom_ddo(client.get_text(job_url))
-            detail_container = detail_ddo.get("jobDetail") if isinstance(detail_ddo.get("jobDetail"), dict) else {}
-            detail_data = detail_container.get("data") if isinstance(detail_container.get("data"), dict) else {}
-            detail = detail_data.get("job") if isinstance(detail_data.get("job"), dict) else {}
-            description = clean_text(
-                detail.get("description")
-                or detail.get("jobDescription")
-                or item.get("descriptionTeaser")
-                or (item.get("ml_job_parser") or {}).get("descriptionTeaser")
-            )
-            output.append(RawJob(
-                title=clean_text(detail.get("title") or item.get("title")),
-                company=clean_text(item.get("brand") or item.get("businessUnit") or source["name"]),
-                location=clean_text(detail.get("location") or item.get("location") or item.get("cityStateCountry")),
-                description=description,
-                source="COMPANY_CAREER_PAGE",
-                source_id=f"phenom-{item.get('jobSeqNo') or identifier}",
-                url=job_url,
-                posted_at=detail.get("postedDate") or item.get("postedDate"),
-            ))
+        page_number = 0
+        while True:
+            page = client.get_text(f"{base_url}/{site_path}/search-results", params={"keywords": term, "page": page_number, "size": 100})
+            page_jobs = _phenom_jobs(_phenom_ddo(page))
+            new_jobs = 0
+            for item in page_jobs:
+                if not isinstance(item, dict):
+                    continue
+                identifier = clean_text(item.get("jobId") or item.get("reqId") or item.get("jobSeqNo"))
+                if not identifier or identifier in seen:
+                    continue
+                seen.add(identifier)
+                new_jobs += 1
+                job_url = f"{base_url}/{site_path}/job/{quote(identifier)}"
+                detail_ddo = _phenom_ddo(client.get_text(job_url))
+                detail_container = detail_ddo.get("jobDetail") if isinstance(detail_ddo.get("jobDetail"), dict) else {}
+                detail_data = detail_container.get("data") if isinstance(detail_container.get("data"), dict) else {}
+                detail = detail_data.get("job") if isinstance(detail_data.get("job"), dict) else {}
+                description = clean_text(
+                    detail.get("description")
+                    or detail.get("jobDescription")
+                    or item.get("descriptionTeaser")
+                    or (item.get("ml_job_parser") or {}).get("descriptionTeaser")
+                )
+                output.append(RawJob(
+                    title=clean_text(detail.get("title") or item.get("title")),
+                    company=clean_text(item.get("brand") or item.get("businessUnit") or source["name"]),
+                    location=clean_text(detail.get("location") or item.get("location") or item.get("cityStateCountry")),
+                    description=description,
+                    source="COMPANY_CAREER_PAGE",
+                    source_id=f"phenom-{item.get('jobSeqNo') or identifier}",
+                    url=job_url,
+                    posted_at=detail.get("postedDate") or item.get("postedDate"),
+                ))
+            if not page_jobs or not new_jobs or len(page_jobs) < 100:
+                break
+            page_number += 1
     return output
 
 
@@ -435,43 +459,49 @@ def fetch_official_html(source: dict[str, Any], client: PublicHttpClient) -> lis
     output: list[RawJob] = []
     seen: set[str] = set()
     for term in SEARCH_TERMS:
-        page = BeautifulSoup(client.get_text(list_url, params={"query": term}), "html.parser")
-        for link in page.select('a[href*="/jobs/"]'):
-            title = clean_text(link.get_text(" ", strip=True))
-            if not is_target_role(title):
-                continue
-            href = clean_text(link.get("href"))
-            url = href if href.startswith("http") else f"{base_url.rstrip('/')}/{href.lstrip('/')}"
-            if url in seen:
-                continue
-            seen.add(url)
-            detail = BeautifulSoup(client.get_text(url), "html.parser")
-            posting: dict[str, Any] = {}
-            for script in detail.select('script[type="application/ld+json"]'):
-                try:
-                    value = json.loads(script.string or script.get_text())
-                except (TypeError, json.JSONDecodeError):
+        page_number = 1
+        while True:
+            page = BeautifulSoup(client.get_text(list_url, params={"query": term, "page": page_number}), "html.parser")
+            links = page.select('a[href*="/jobs/"]')
+            new_links = 0
+            for link in links:
+                title = clean_text(link.get_text(" ", strip=True))
+                href = clean_text(link.get("href"))
+                url = href if href.startswith("http") else f"{base_url.rstrip('/')}/{href.lstrip('/')}"
+                if url in seen:
                     continue
-                values = value if isinstance(value, list) else [value]
-                posting = next((entry for entry in values if isinstance(entry, dict) and entry.get("@type") == "JobPosting"), {})
-                if posting:
-                    break
-            location_value = posting.get("jobLocation")
-            location = clean_text(location_value)
-            if isinstance(location_value, dict):
-                address = location_value.get("address") if isinstance(location_value.get("address"), dict) else {}
-                location = ", ".join(clean_text(address.get(part)) for part in ("addressLocality", "addressRegion", "addressCountry") if clean_text(address.get(part)))
-            identifier = url.rstrip("/").rsplit("/", 1)[-1].split("-", 1)[0]
-            output.append(RawJob(
-                title=clean_text(posting.get("title") or title),
-                company=source["name"],
-                location=location,
-                description=clean_text(posting.get("description")),
-                source="COMPANY_CAREER_PAGE",
-                source_id=f"official-{source.get('slug')}-{identifier}",
-                url=url,
-                posted_at=posting.get("datePosted"),
-            ))
+                seen.add(url)
+                new_links += 1
+                detail = BeautifulSoup(client.get_text(url), "html.parser")
+                posting: dict[str, Any] = {}
+                for script in detail.select('script[type="application/ld+json"]'):
+                    try:
+                        value = json.loads(script.string or script.get_text())
+                    except (TypeError, json.JSONDecodeError):
+                        continue
+                    values = value if isinstance(value, list) else [value]
+                    posting = next((entry for entry in values if isinstance(entry, dict) and entry.get("@type") == "JobPosting"), {})
+                    if posting:
+                        break
+                location_value = posting.get("jobLocation")
+                location = clean_text(location_value)
+                if isinstance(location_value, dict):
+                    address = location_value.get("address") if isinstance(location_value.get("address"), dict) else {}
+                    location = ", ".join(clean_text(address.get(part)) for part in ("addressLocality", "addressRegion", "addressCountry") if clean_text(address.get(part)))
+                identifier = url.rstrip("/").rsplit("/", 1)[-1].split("-", 1)[0]
+                output.append(RawJob(
+                    title=clean_text(posting.get("title") or title),
+                    company=source["name"],
+                    location=location,
+                    description=clean_text(posting.get("description")),
+                    source="COMPANY_CAREER_PAGE",
+                    source_id=f"official-{source.get('slug')}-{identifier}",
+                    url=url,
+                    posted_at=posting.get("datePosted"),
+                ))
+            if not links or not new_links or len(links) < 100:
+                break
+            page_number += 1
     return output
 
 

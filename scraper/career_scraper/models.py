@@ -51,6 +51,7 @@ class Job:
 class SourceResult:
     source: str
     kind: str
+    career_url: str | None = None
     status: str = "pending"
     fetched: int = 0
     discovered: int = 0

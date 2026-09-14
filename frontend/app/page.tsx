@@ -5,6 +5,7 @@ import ResumeVersions from "./resume-versions";
 import ApplicationWorkflow from "./application-workflow";
 import Settings from "./settings";
 import ManualJobForm from "./manual-job-form";
+import Companies from "./companies";
 import {AuthenticationRequiredError, useAuth} from "./auth-provider";
 import {isActiveOpportunityStatus, jobStatusesForView} from "./lib/workflow-view";
 
@@ -100,7 +101,7 @@ export default function Home() {
     <main>
       <header><div><p className="eyebrow">CAREER WORKSPACE</p><h1>{active}</h1><p>UAE roles matched to your verified experience and skills.</p></div>{active !== "Resume Versions" && <button className="primary" onClick={() => navigate("New Jobs")}>＋ Review new jobs</button>}</header>
       <div className="notice">Applications are submitted manually. No portal credentials are stored.</div>
-      {active === "Resume Versions" ? <ResumeVersions apiBase={api}/> : active === "Settings" ? <Settings apiBase={api} apiFetch={apiFetch}/> : active === "Add Job Manually" ? <ManualJobForm apiBase={api} apiFetch={apiFetch} onCreated={value=>{const job=normalizeJob(value as Job,0);setJobs(items=>[job,...items]);setActive("New Jobs");void selectJob(job);}}/> : workflowViews.includes(active) ? <ApplicationWorkflow apiBase={api} view={active}/> : <>
+      {active === "Resume Versions" ? <ResumeVersions apiBase={api}/> : active === "Settings" ? <Settings apiBase={api} apiFetch={apiFetch}/> : active === "Companies" ? <Companies apiBase={api} apiFetch={apiFetch}/> : active === "Add Job Manually" ? <ManualJobForm apiBase={api} apiFetch={apiFetch} onCreated={value=>{const job=normalizeJob(value as Job,0);setJobs(items=>[job,...items]);setActive("New Jobs");void selectJob(job);}}/> : workflowViews.includes(active) ? <ApplicationWorkflow apiBase={api} view={active}/> : <>
         {offline && <div className="notice">Demo mode · Backend unavailable. Showing safe UAE fixtures.</div>}
         <section className="cards">{Object.entries(counts).map(([name, value], index) => <article key={name}><span className={`dot d${index}`}/><div><small>{name}</small><strong>{value}</strong><em>{index === 1 ? "Ranked by evidence" : "Current pipeline"}</em></div></article>)}</section>
         <section className="panel">

@@ -5,10 +5,13 @@ import career.assistant.job.dto.JobResponse;
 import career.assistant.job.mapper.JobMapper;
 import career.assistant.job.service.JobService;
 import career.assistant.scraper.config.JobSource;
+import career.assistant.scraper.health.ScraperSourceHealth;
+import career.assistant.scraper.health.ScraperSourceHealthRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,14 +38,24 @@ public class IngestionController {
 
     private final JobService jobs;
     private final CompanyService companies;
+    private final ScraperSourceHealthRepository sourceHealth;
 
     public IngestionController(JobService jobs, CompanyService companies) {
+        this(jobs, companies, null);
+    }
+
+    @Autowired
+    public IngestionController(JobService jobs, CompanyService companies, ScraperSourceHealthRepository sourceHealth) {
         this.jobs = jobs;
         this.companies = companies;
+        this.sourceHealth = sourceHealth;
     }
 
     @PostMapping("/ingest")
     public IngestResult ingest(@Valid @RequestBody IngestRequest request) {
+        if (!request.dryRun() && sourceHealth != null) {
+            request.sourceRuns().forEach(this::recordSourceHealth);
+        }
         int accepted = 0;
         int rejected = 0;
         int duplicates = 0;
@@ -87,6 +100,43 @@ public class IngestionController {
         return new IngestResult(request.dryRun(), accepted, rejected, duplicates, saved);
     }
 
+    @GetMapping("/sources")
+    public List<SourceHealthResponse> sourceHealth() {
+        if (sourceHealth == null) return List.of();
+        return sourceHealth.findAll().stream().map(SourceHealthResponse::from).toList();
+    }
+
+    private void recordSourceHealth(SourceRun run) {
+        String key = run.source().trim();
+        var row = sourceHealth.findById(key).orElseGet(ScraperSourceHealth::new);
+        row.setSourceKey(key);
+        row.setSourceName(key);
+        row.setSourceKind(run.kind());
+        row.setSourceStatus(status(run.status()));
+        row.setCareerUrl(run.careerUrl());
+        row.setDiscovered(run.discovered());
+        row.setFetched(run.fetched());
+        row.setAccepted(run.accepted());
+        row.setRejected(run.rejected());
+        row.setDuplicates(run.duplicates());
+        row.setElapsedMs(run.elapsedMs());
+        row.setErrorType(run.errorType());
+        OffsetDateTime now = OffsetDateTime.now();
+        row.setLastRunAt(now);
+        if ("ACTIVE".equals(row.getSourceStatus())) row.setLastSuccessAt(now);
+        row.setUpdatedAt(now);
+        sourceHealth.save(row);
+    }
+
+    private String status(String value) {
+        return switch (value == null ? "" : value.toLowerCase(Locale.ROOT)) {
+            case "ok", "active" -> "ACTIVE";
+            case "catalog_only", "catalog only" -> "CATALOG_ONLY";
+            case "link_only", "link only" -> "LINK_ONLY";
+            default -> "FAILED";
+        };
+    }
+
     private boolean eligible(IngestJob job) {
         String location = job.location().toLowerCase(Locale.ROOT);
         boolean excluded = EXCLUDED_LOCATION_MARKERS.stream().anyMatch(location::contains);
@@ -95,7 +145,8 @@ public class IngestionController {
                 ? job.experienceMin() == null && job.experienceMax() == null
                 : (job.experienceMin() == null || job.experienceMin() <= 8)
                     && (job.experienceMax() == null || job.experienceMax() >= 4);
-        return uae && !excluded && experience;
+        // Multi-location roles remain eligible when UAE is explicitly listed.
+        return uae && experience;
     }
 
     private String city(String location) {
@@ -134,7 +185,36 @@ public class IngestionController {
         return List.of(canonicalUrl, alternate);
     }
 
-    public record IngestRequest(boolean dryRun, @NotEmpty List<@Valid IngestJob> jobs) {}
+    public record IngestRequest(boolean dryRun, @NotNull List<@Valid IngestJob> jobs, @NotNull List<@Valid SourceRun> sourceRuns) {
+        public IngestRequest(boolean dryRun, List<IngestJob> jobs) {
+            this(dryRun, jobs, List.of());
+        }
+    }
+
+    public record SourceRun(
+            @NotBlank String source,
+            @NotBlank String kind,
+            @NotBlank String status,
+            String careerUrl,
+            int discovered,
+            int fetched,
+            int accepted,
+            int rejected,
+            int duplicates,
+            long elapsedMs,
+            String errorType
+    ) {}
+
+    public record SourceHealthResponse(
+            String sourceKey, String sourceName, String sourceKind, String sourceStatus,
+            String careerUrl, int discovered, int fetched, int accepted, int rejected,
+            int duplicates, long elapsedMs, String errorType,
+            OffsetDateTime lastRunAt, OffsetDateTime lastSuccessAt
+    ) {
+        static SourceHealthResponse from(ScraperSourceHealth row) {
+            return new SourceHealthResponse(row.getSourceKey(), row.getSourceName(), row.getSourceKind(), row.getSourceStatus(), row.getCareerUrl(), row.getDiscovered(), row.getFetched(), row.getAccepted(), row.getRejected(), row.getDuplicates(), row.getElapsedMs(), row.getErrorType(), row.getLastRunAt(), row.getLastSuccessAt());
+        }
+    }
 
     public record IngestJob(
             @NotBlank String title,

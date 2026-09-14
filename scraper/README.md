@@ -2,15 +2,17 @@
 
 This component reads only public candidate-facing ATS endpoints. It supports
 Workday, Oracle HCM, Greenhouse, Lever, and Workable without accounts, cookies, browser
-sessions, CAPTCHA handling, or private APIs. The source catalog contains 92
-Dubai/UAE employers: 35 active public ATS integrations and 57 catalog entries
-whose endpoints still need verification. A catalog entry is deliberately
-reported as `catalog_only` and is never contacted until an adapter is verified.
+sessions, CAPTCHA handling, or private APIs. The source catalog contains 96
+Dubai/UAE employers plus four board links: 40 active public ATS integrations,
+ 52 catalog entries whose endpoints still need verification, and NaukriGulf,
+ Bayt, GulfTalent, and Indeed as `link_only`. Catalog and link-only entries are
+ never contacted by the scraper.
 Add or promote a source in `career_scraper/config.py` only after its official
 public ATS endpoint has been verified.
 
-The pipeline defaults to dry-run and processes at most 200 target-role
-candidates per run. A job must have at least one explicit UAE location and a
+The pipeline defaults to dry-run and collects up to 10,000 records per source
+as a safety ceiling while reporting the fetched count. A job must have at least
+one explicit UAE location and a
 target DevOps, DevSecOps, SRE, platform, cloud, infrastructure, production,
 Kubernetes, or related solutions-architecture title. Multi-location vacancies
 remain eligible when the UAE is one of the advertised locations; India-only and
@@ -29,7 +31,7 @@ scan.
 
 ```bash
 python -m pip install -r scraper/requirements.txt
-python scraper/run.py --dry-run --max-results 200 --max-candidates 200 \
+python scraper/run.py --dry-run --max-results 200 --max-candidates 10000 \
   --summary-file /tmp/career-scraper-summary.json \
   --output-file /tmp/career-scraper-jobs.json
 ```

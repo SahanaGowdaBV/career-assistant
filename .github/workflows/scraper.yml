@@ -74,11 +74,11 @@ jobs:
             exit 1
           fi
           if [ "$DRY_RUN" = "true" ]; then
-            python scraper/run.py --dry-run --max-results "$MAXIMUM_RESULTS" --max-candidates 200 --summary-file scraper-summary.json
+            python scraper/run.py --dry-run --max-results "$MAXIMUM_RESULTS" --max-candidates 10000 --summary-file scraper-summary.json
           else
             test -n "$CAREER_API_URL" || { echo "::error::CAREER_API_URL is required for live ingestion"; exit 1; }
             test -n "$SCRAPER_INGESTION_TOKEN" || { echo "::error::SCRAPER_INGESTION_TOKEN is required for live ingestion"; exit 1; }
-            python scraper/run.py --live --max-results "$MAXIMUM_RESULTS" --max-candidates 200 --summary-file scraper-summary.json
+            python scraper/run.py --live --max-results "$MAXIMUM_RESULTS" --max-candidates 10000 --summary-file scraper-summary.json
           fi
 
       - name: Upload non-sensitive source summary

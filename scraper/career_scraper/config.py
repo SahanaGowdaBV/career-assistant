@@ -196,6 +196,12 @@ SOURCES = [
     {"kind": "lever", "name": "Binance", "slug": "binance"},
     {"kind": "lever", "name": "Palantir", "slug": "palantir"},
 
+    # Public job-board links. Their terms/robots policies do not authorize this
+    # service to copy and store listings, so they remain visible as Link only.
+    {"kind": "link_only", "name": "NaukriGulf", "career_url": "https://www.naukrigulf.com/devops-jobs-in-uae"},
+    {"kind": "link_only", "name": "Bayt", "career_url": "https://www.bayt.com/en/uae/jobs/devops-jobs/"},
+    {"kind": "link_only", "name": "GulfTalent", "career_url": "https://www.gulftalent.com/uae/jobs?keywords=devops"},
+    {"kind": "link_only", "name": "Indeed", "career_url": "https://ae.indeed.com/jobs?q=devops&l=United+Arab+Emirates"},
     # Career-page catalog entries. These are intentionally not scraped until
     # their public ATS contract is verified and an adapter is enabled.
     {"kind": "catalog_only", "name": "Oracle", "career_url": "https://careers.oracle.com/"},
@@ -205,14 +211,14 @@ SOURCES = [
     {"kind": "catalog_only", "name": "Microsoft", "career_url": "https://careers.microsoft.com/"},
     {"kind": "catalog_only", "name": "Google", "career_url": "https://www.google.com/about/careers/applications/"},
     {"kind": "catalog_only", "name": "IBM", "career_url": "https://www.ibm.com/careers"},
-    {"kind": "catalog_only", "name": "Dell Technologies", "career_url": "https://jobs.dell.com/"},
+    {"kind": "workday", "name": "Dell Technologies", "host": "dell.wd1.myworkdayjobs.com", "tenant": "dell", "site": "External", "career_url": "https://dell.wd1.myworkdayjobs.com/External"},
     {"kind": "catalog_only", "name": "SAP", "career_url": "https://jobs.sap.com/"},
     {"kind": "catalog_only", "name": "ServiceNow", "career_url": "https://careers.servicenow.com/jobs/"},
-    {"kind": "catalog_only", "name": "Hewlett Packard Enterprise", "career_url": "https://careers.hpe.com/"},
+    {"kind": "workday", "name": "Hewlett Packard Enterprise", "host": "hpe.wd5.myworkdayjobs.com", "tenant": "hpe", "site": "Jobsathpe", "career_url": "https://hpe.wd5.myworkdayjobs.com/Jobsathpe"},
     {"kind": "catalog_only", "name": "Broadcom", "career_url": "https://www.broadcom.com/company/careers"},
     {"kind": "catalog_only", "name": "VMware", "career_url": "https://www.broadcom.com/company/careers"},
-    {"kind": "catalog_only", "name": "Equinix", "career_url": "https://careers.equinix.com/"},
-    {"kind": "catalog_only", "name": "DXC Technology", "career_url": "https://www.dxc.com/us/en/careers"},
+    {"kind": "workday", "name": "Equinix", "host": "equinix.wd1.myworkdayjobs.com", "tenant": "equinix", "site": "External", "career_url": "https://equinix.wd1.myworkdayjobs.com/External"},
+    {"kind": "workday", "name": "DXC Technology", "host": "dxctechnology.wd1.myworkdayjobs.com", "tenant": "dxctechnology", "site": "DXCJobs", "career_url": "https://dxctechnology.wd1.myworkdayjobs.com/DXCJobs"},
     {"kind": "catalog_only", "name": "NTT DATA", "career_url": "https://us.nttdata.com/en/careers"},
     {"kind": "catalog_only", "name": "Rackspace Technology", "career_url": "https://rackspace.jobs/"},
     {"kind": "catalog_only", "name": "Huawei", "career_url": "https://career.huawei.com/"},
@@ -231,7 +237,7 @@ SOURCES = [
     {"kind": "catalog_only", "name": "Standard Chartered", "career_url": "https://www.sc.com/en/global-careers/"},
     {"kind": "catalog_only", "name": "HSBC", "career_url": "https://www.hsbc.com/careers"},
     {"kind": "catalog_only", "name": "Citi", "career_url": "https://jobs.citi.com/"},
-    {"kind": "catalog_only", "name": "Mastercard", "career_url": "https://careers.mastercard.com/"},
+    {"kind": "workday", "name": "Mastercard", "host": "mastercard.wd1.myworkdayjobs.com", "tenant": "mastercard", "site": "CorporateCareers", "career_url": "https://mastercard.wd1.myworkdayjobs.com/CorporateCareers"},
     {"kind": "catalog_only", "name": "Noon", "career_url": "https://careers.noon.com/"},
     {"kind": "catalog_only", "name": "Talabat", "career_url": "https://careers.talabat.com/"},
     {"kind": "catalog_only", "name": "Property Finder", "career_url": "https://www.propertyfinder.ae/careers/"},
@@ -292,7 +298,7 @@ PRIORITY_KEYWORDS = (
 def validate_source(source: dict) -> None:
     """Fail closed before contacting anything except configured public career providers."""
     kind = source.get("kind")
-    if kind not in {"amazon", "ashby", "greenhouse", "lever", "workable", "smartrecruiters", "workday", "oracle", "phenom", "official_html", "catalog_only"}:
+    if kind not in {"amazon", "ashby", "greenhouse", "lever", "workable", "smartrecruiters", "workday", "oracle", "phenom", "official_html", "catalog_only", "link_only"}:
         raise ValueError("Unsupported public source kind")
     if not str(source.get("name") or "").strip():
         raise ValueError("Official source name is required")

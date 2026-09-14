@@ -147,12 +147,18 @@ class WorkdayClient:
         }
 
     def get_json(self, url):
-        assert url.endswith("/job/Dubai/Cloud-Engineer_1")
+        if url.endswith("/job/Dubai/Cloud-Engineer_1"):
+            return {"jobPostingInfo": {
+                "title": "Cloud Engineer",
+                "location": "Dubai, United Arab Emirates",
+                "jobDescription": "Five years of AWS platform experience.",
+                "externalPath": "/job/Dubai/Cloud-Engineer_1",
+            }}
         return {"jobPostingInfo": {
             "title": "Cloud Engineer",
-            "location": "Dubai, United Arab Emirates",
+            "location": "Bengaluru, India",
             "jobDescription": "Five years of AWS platform experience.",
-            "externalPath": "/job/Dubai/Cloud-Engineer_1",
+            "externalPath": "/job/Bengaluru/Cloud-Engineer_2",
         }}
 
 
@@ -166,8 +172,8 @@ def test_workday_discovers_and_applies_uae_country_facet_before_enumeration():
         "site": "External",
     }, client)
 
-    assert len(jobs) == 1
-    assert jobs[0].location == "Dubai, United Arab Emirates"
+    assert len(jobs) == 2
+    assert {job.location for job in jobs} == {"Dubai, United Arab Emirates", "Bengaluru, India"}
     assert all(payload["appliedFacets"] == {"locationCountry": ["uae-id"]} for payload in client.search_payloads)
 
 

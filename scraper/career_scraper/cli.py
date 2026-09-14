@@ -17,7 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--dry-run", action="store_true", default=True, help="Scrape only (default).")
     mode.add_argument("--live", action="store_true", help="Send accepted jobs to the backend ingestion API.")
     parser.add_argument("--max-results", type=int, default=50)
-    parser.add_argument("--max-candidates", type=int, default=200)
+    parser.add_argument("--max-candidates", type=int, default=10000)
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--retries", type=int, default=2)
     parser.add_argument("--rate-limit-seconds", type=float, default=0.25)
@@ -54,9 +54,25 @@ def main(argv: list[str] | None = None) -> int:
     client = PublicHttpClient(timeout=args.timeout, retries=args.retries, rate_limit_seconds=args.rate_limit_seconds)
     pipeline = Pipeline(client=client, max_results=args.max_results, max_candidates=args.max_candidates)
     jobs = pipeline.run()
-    payload = {"dryRun": dry_run, "jobs": [job.to_ingestion_dict() for job in jobs]}
+    source_runs = []
+    for result in getattr(pipeline, "source_results", []):
+        data = result.safe_dict()
+        source_runs.append({
+            "source": data["source"],
+            "kind": data["kind"],
+            "status": data["status"],
+            "careerUrl": data.get("career_url"),
+            "discovered": data["discovered"],
+            "fetched": data["fetched"],
+            "accepted": data["accepted"],
+            "rejected": data["rejected"],
+            "duplicates": data["duplicates"],
+            "elapsedMs": data["elapsed_ms"],
+            "errorType": data.get("error_type"),
+        })
+    payload = {"dryRun": dry_run, "jobs": [job.to_ingestion_dict() for job in jobs], "sourceRuns": source_runs}
     ingestion = None
-    if not dry_run and jobs:
+    if not dry_run:
         response = client.post(
             ingestion_url(args.api_url),
             payload,
