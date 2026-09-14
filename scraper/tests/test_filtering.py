@@ -32,6 +32,13 @@ def test_uae_filter_accepts_only_supported_locations():
     assert is_uae_location("Remote - UAE")
     assert is_uae_location("United Arab Emirates")
     assert is_uae_location("Ajman, UAE")
+    assert is_uae_location("Ajman")
+    assert is_uae_location("Fujairah")
+    assert is_uae_location("Ras Al Khaimah")
+    assert is_uae_location("Ras Al-Khaimah")
+    assert is_uae_location("Umm Al Quwain")
+    assert is_uae_location("Umm Al-Quwain")
+    assert is_uae_location("Al Ain")
     assert not is_uae_location("Remote - EMEA")
     assert not is_uae_location("Global Remote")
 

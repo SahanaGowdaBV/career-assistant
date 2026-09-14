@@ -22,6 +22,13 @@ UAE_MARKERS = (
     "dubai",
     "abu dhabi",
     "sharjah",
+    "ajman",
+    "fujairah",
+    "ras al khaimah",
+    "ras al-khaimah",
+    "umm al quwain",
+    "umm al-quwain",
+    "al ain",
 )
 INDIA_MARKERS = (
     "india",

@@ -107,13 +107,21 @@ public class ManualJobImportService {
     private static String uaeCountry(String location) {
         String value = location.toLowerCase(Locale.ROOT);
         return value.contains("uae") || value.contains("united arab emirates") || value.contains("dubai")
-                || value.contains("abu dhabi") || value.contains("sharjah") ? "United Arab Emirates" : null;
+                || value.contains("abu dhabi") || value.contains("sharjah") || value.contains("ajman")
+                || value.contains("fujairah") || value.contains("ras al khaimah") || value.contains("ras al-khaimah")
+                || value.contains("umm al quwain") || value.contains("umm al-quwain") || value.contains("al ain")
+                ? "United Arab Emirates" : null;
     }
 
     private static String uaeCity(String location) {
         String value = location.toLowerCase(Locale.ROOT);
         if (value.contains("abu dhabi")) return "Abu Dhabi";
         if (value.contains("sharjah")) return "Sharjah";
+        if (value.contains("ajman")) return "Ajman";
+        if (value.contains("fujairah")) return "Fujairah";
+        if (value.contains("ras al khaimah") || value.contains("ras al-khaimah")) return "Ras Al Khaimah";
+        if (value.contains("umm al quwain") || value.contains("umm al-quwain")) return "Umm Al Quwain";
+        if (value.contains("al ain")) return "Al Ain";
         if (value.contains("dubai")) return "Dubai";
         return null;
     }

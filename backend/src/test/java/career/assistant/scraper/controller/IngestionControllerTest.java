@@ -35,7 +35,7 @@ class IngestionControllerTest {
                 new IngestionController.IngestJob(
                         "Platform Engineer",
                         "G42",
-                        "Abu Dhabi, United Arab Emirates",
+                        "Ajman",
                         null,
                         null,
                         true,
@@ -54,6 +54,8 @@ class IngestionControllerTest {
 
         assertEquals(1, result.accepted());
         assertEquals("PENDING_REVIEW", saved.getStatus());
+        assertEquals("United Arab Emirates", saved.getCountry());
+        assertEquals("Ajman", saved.getCity());
         assertNull(saved.getExperienceMin());
         assertNull(saved.getExperienceMax());
     }

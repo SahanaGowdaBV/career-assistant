@@ -309,7 +309,10 @@ public class ApplicationWorkflowService {
         if (application.getStatus() != ApplicationStatus.READY_TO_APPLY) reasons.add("application is not READY_TO_APPLY");
         if (score.getScore() == null || score.getScore().compareTo(minimumScore) < 0) reasons.add("score below " + minimumScore.stripTrailingZeros().toPlainString());
         String location = (String.valueOf(job.getLocation()) + " " + String.valueOf(job.getCountry())).toLowerCase(Locale.ROOT);
-        if (!(location.contains("uae") || location.contains("united arab emirates") || location.contains("dubai") || location.contains("abu dhabi") || location.contains("sharjah")))
+        if (!(location.contains("uae") || location.contains("united arab emirates") || location.contains("dubai")
+                || location.contains("abu dhabi") || location.contains("sharjah") || location.contains("ajman")
+                || location.contains("fujairah") || location.contains("ras al khaimah") || location.contains("ras al-khaimah")
+                || location.contains("umm al quwain") || location.contains("umm al-quwain") || location.contains("al ain")))
             reasons.add("location is not explicitly UAE");
         if (adapter.isEmpty()) reasons.add("ATS is unsupported");
         if (resumes.activeMasterEntity().isEmpty()) reasons.add("no active master resume");

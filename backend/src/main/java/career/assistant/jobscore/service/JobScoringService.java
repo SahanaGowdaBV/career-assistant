@@ -493,7 +493,9 @@ public class JobScoringService {
     private BigDecimal calculateLocationScore(String country, String city, String fullLocation) {
         String location = (nullToEmpty(country) + " " + nullToEmpty(city) + " " + nullToEmpty(fullLocation)).toLowerCase(Locale.ROOT);
         return location.contains("uae") || location.contains("united arab emirates") || location.contains("dubai")
-                || location.contains("abu dhabi") || location.contains("sharjah")
+                || location.contains("abu dhabi") || location.contains("sharjah") || location.contains("ajman")
+                || location.contains("fujairah") || location.contains("ras al khaimah") || location.contains("ras al-khaimah")
+                || location.contains("umm al quwain") || location.contains("umm al-quwain") || location.contains("al ain")
                 ? BigDecimal.valueOf(100) : BigDecimal.ZERO;
     }
 

@@ -28,7 +28,9 @@ import java.util.Locale;
 public class IngestionController {
 
     private static final List<String> UAE_MARKERS = List.of(
-            "dubai", "abu dhabi", "sharjah", "uae", "united arab emirates"
+            "dubai", "abu dhabi", "sharjah", "ajman", "fujairah", "ras al khaimah",
+            "ras al-khaimah", "umm al quwain", "umm al-quwain", "al ain",
+            "uae", "united arab emirates"
     );
     private static final List<String> EXCLUDED_LOCATION_MARKERS = List.of(
             "india", "bengaluru", "bangalore", "hyderabad", "pune", "chennai", "mumbai",
@@ -153,6 +155,11 @@ public class IngestionController {
         String normalized = location.toLowerCase(Locale.ROOT);
         if (normalized.contains("abu dhabi")) return "Abu Dhabi";
         if (normalized.contains("sharjah")) return "Sharjah";
+        if (normalized.contains("ajman")) return "Ajman";
+        if (normalized.contains("fujairah")) return "Fujairah";
+        if (normalized.contains("ras al khaimah") || normalized.contains("ras al-khaimah")) return "Ras Al Khaimah";
+        if (normalized.contains("umm al quwain") || normalized.contains("umm al-quwain")) return "Umm Al Quwain";
+        if (normalized.contains("al ain")) return "Al Ain";
         if (normalized.contains("dubai")) return "Dubai";
         return "Remote";
     }

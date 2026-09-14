@@ -16,6 +16,11 @@ public class JobSearchConfig {
                     "Dubai",
                     "Abu Dhabi",
                     "Sharjah",
+                    "Ajman",
+                    "Fujairah",
+                    "Ras Al Khaimah",
+                    "Umm Al Quwain",
+                    "Al Ain",
                     "United Arab Emirates",
                     "UAE"
             )
