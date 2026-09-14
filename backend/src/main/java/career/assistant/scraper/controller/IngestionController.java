@@ -186,6 +186,11 @@ public class IngestionController {
     }
 
     public record IngestRequest(boolean dryRun, @NotNull List<@Valid IngestJob> jobs, @NotNull List<@Valid SourceRun> sourceRuns) {
+        public IngestRequest {
+            jobs = jobs == null ? List.of() : jobs;
+            sourceRuns = sourceRuns == null ? List.of() : sourceRuns;
+        }
+
         public IngestRequest(boolean dryRun, List<IngestJob> jobs) {
             this(dryRun, jobs, List.of());
         }
